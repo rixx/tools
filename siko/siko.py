@@ -24,20 +24,22 @@ current = None
 
 
 def reset():
-    judgement.set('')
-    judgement_class.set('')
+    judgement.set("")
+    judgement_class.set("")
 
 
 def submit(*args):
     try:
         if judgement.get():
-            evaluation.append([
-                f'{int(current["ID"]):04d}',
-                current['Measure ID'].split('_')[0],
-                '',
-                judgement_class.get() or judgement_choices[0],
-                judgement.get(),
-            ])
+            evaluation.append(
+                [
+                    f'{int(current["ID"]):04d}',
+                    current["Measure ID"].split("_")[0],
+                    "",
+                    judgement_class.get() or judgement_choices[0],
+                    judgement.get(),
+                ]
+            )
         reset()
         switch_to_next()
     except Exception:
@@ -47,7 +49,7 @@ def submit(*args):
 def print_and_exit(*args):
     writer = csv.writer(sys.stdout)
     writer.writerows(evaluation)
-    with open(sys.argv[-1].split('.')[0] + '_result.csv', 'w') as csvfile:
+    with open(sys.argv[-1].split(".")[0] + "_result.csv", "w") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerows(evaluation)
     sys.exit()
@@ -55,9 +57,9 @@ def print_and_exit(*args):
 
 def get_data():
     filename = sys.argv[-1]
-    if filename.endswith('.csv'):
+    if filename.endswith(".csv"):
         return list(csv.DictReader(open(sys.argv[-1])))
-    raise Exception('No support for this file type yet.')
+    raise Exception("No support for this file type yet.")
 
 
 english_states = [
@@ -71,10 +73,10 @@ english_states = [
 
 def derive_language(data):
     for d in data:
-        state_value = d['State of Implementation']
+        state_value = d["State of Implementation"]
         if not state_value.strip():
             continue
-        return 'en' if state_value in english_states else 'de'
+        return "en" if state_value in english_states else "de"
 
 
 data = get_data()
@@ -85,23 +87,23 @@ def switch_to_next():
     global current_index, current, has_risk
     current_index += 1
     if current_index >= len(data):
-        raise Exception('Out of bounds')
+        raise Exception("Out of bounds")
     current = data[current_index]
-    question.set(current['Description'])
-    hint.set(current['Notice'])
-    state_value = current['State of Implementation']
+    question.set(current["Description"])
+    hint.set(current["Notice"])
+    state_value = current["State of Implementation"]
     state.set(state_value)
-    answer.set(current['Justification'])
-    if state_value in ['Implemented', ]:
-        state_label.configure(background='green')
-    elif state_value in ['Not completely implemented (deviation)']:
-        state_label.configure(background='yellow')
-    elif state_value in ['Not completely implemented (risk)']:
-        state_label.configure(background='red')
+    answer.set(current["Justification"])
+    if state_value in ["Implemented"]:
+        state_label.configure(background="green")
+    elif state_value in ["Not completely implemented (deviation)"]:
+        state_label.configure(background="yellow")
+    elif state_value in ["Not completely implemented (risk)"]:
+        state_label.configure(background="red")
     else:
-        state_label.configure(background='gray')
-    mitigation.set(current['Mitigating measure for deviation'])
-    risk.set(current['Risk ID'])
+        state_label.configure(background="gray")
+    mitigation.set(current["Mitigating measure for deviation"])
+    risk.set(current["Risk ID"])
 
 
 mainframe = Frame(root)
@@ -147,10 +149,10 @@ judgement_de = [
     "Die alternative Maßnahmen zur vollständigen Erfüllung der Schutzziele sind nicht nachvollziehbar dokumentiert.",
     "Die alternative Maßnahmen zur vollständigen Erfüllung der Schutzziele beseitigen nicht die Abweichung.",
 ]
-judgement_choices = judgement_de if language == 'de' else judgement_en
+judgement_choices = judgement_de if language == "de" else judgement_en
 
 judgement_class_widget = ttk.OptionMenu(mainframe, judgement_class, *judgement_choices)
-judgement_class.set('')
+judgement_class.set("")
 judgement_class_widget.grid(row=0, column=2)
 judgement_widget = ttk.Entry(mainframe, width=7, textvariable=judgement)
 judgement_widget.grid(column=2, row=1, sticky=(W, E))
@@ -162,16 +164,24 @@ ttk.Label(mainframe, text="Requirement").grid(column=1, row=2, sticky=W)
 requirement_label = ttk.Label(mainframe, textvariable=question, wraplength=wrap)
 requirement_label.grid(column=2, row=2, sticky=(W, E))
 ttk.Label(mainframe, text="Hint").grid(column=1, row=3, sticky=W)
-ttk.Label(mainframe, textvariable=hint, wraplength=wrap).grid(column=2, row=3, sticky=(W, E))
+ttk.Label(mainframe, textvariable=hint, wraplength=wrap).grid(
+    column=2, row=3, sticky=(W, E)
+)
 ttk.Label(mainframe, text="State").grid(column=1, row=4, sticky=W)
 state_label = ttk.Label(mainframe, textvariable=state, wraplength=wrap)
 state_label.grid(column=2, row=4, sticky=(W, E))
 ttk.Label(mainframe, text="Answer").grid(column=1, row=5, sticky=W)
-ttk.Label(mainframe, textvariable=answer, wraplength=wrap).grid(column=2, row=5, sticky=(W, E))
+ttk.Label(mainframe, textvariable=answer, wraplength=wrap).grid(
+    column=2, row=5, sticky=(W, E)
+)
 ttk.Label(mainframe, text="Mitigation").grid(column=1, row=6, sticky=W)
-ttk.Label(mainframe, textvariable=mitigation, wraplength=wrap).grid(column=2, row=6, sticky=(W, E))
+ttk.Label(mainframe, textvariable=mitigation, wraplength=wrap).grid(
+    column=2, row=6, sticky=(W, E)
+)
 ttk.Label(mainframe, text="Risk ID").grid(column=1, row=7, sticky=W)
-ttk.Label(mainframe, textvariable=risk, wraplength=wrap).grid(column=2, row=7, sticky=(W, E))
+ttk.Label(mainframe, textvariable=risk, wraplength=wrap).grid(
+    column=2, row=7, sticky=(W, E)
+)
 
 switch_to_next()
 
@@ -180,7 +190,7 @@ for child in mainframe.winfo_children():
     child.grid_configure(padx=5, pady=5)
 
 judgement_widget.focus()
-root.bind('<Return>', submit)
-root.bind('<Shift-Return>', print_and_exit)
+root.bind("<Return>", submit)
+root.bind("<Shift-Return>", print_and_exit)
 
 root.mainloop()
