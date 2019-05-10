@@ -8,8 +8,8 @@ from tkinter import font
 root = Tk()
 w, h = root.winfo_screenwidth(), root.winfo_screenheight()
 root.title("SiKo for Dummies")
-root.geometry(f'{w}x{h}+0+0')
-root.config(background='white')
+root.geometry(f"{w}x{h}+0+0")
+root.config(background="white")
 
 question = StringVar()
 hint = StringVar()
@@ -91,7 +91,7 @@ def switch_to_next():
     current_index += 1
     if current_index >= len(data):
         raise Exception("Out of bounds")
-    progressbar['value'] = current_index + 1
+    progressbar["value"] = current_index + 1
     current = data[current_index]
     question.set(current["Description"])
     hint.set(current["Notice"])
@@ -110,8 +110,8 @@ def switch_to_next():
     risk.set(current["Risk ID"])
 
 
-frame = Frame(root,relief=GROOVE,width=50,height=100,bd=1)
-frame.place(x=10,y=10)
+frame = Frame(root, relief=GROOVE, width=50, height=100, bd=1)
+frame.place(x=10, y=10)
 canvas = Canvas(frame)
 mainframe = Frame(canvas)
 scrollbar = Scrollbar(frame, orient=VERTICAL, command=canvas.yview)
@@ -159,19 +159,26 @@ judgement_choices = judgement_de if language == "de" else judgement_en
 
 scrollbar.pack(side=RIGHT, fill=Y)
 canvas.pack(side=LEFT)
-canvas.config(background='white')
-canvas.create_window((0, 0), window=mainframe, anchor='nw')
-mainframe.bind('<Configure>', lambda event: canvas.configure(scrollregion=canvas.bbox("all"), width=w - 30, height=h - 120))
-mainframe.config(background='white')
+canvas.config(background="white")
+canvas.create_window((0, 0), window=mainframe, anchor="nw")
+mainframe.bind(
+    "<Configure>",
+    lambda event: canvas.configure(
+        scrollregion=canvas.bbox("all"), width=w - 30, height=h - 120
+    ),
+)
+mainframe.config(background="white")
 
 root.bind("<Return>", submit)
 root.bind("<Shift-Return>", print_and_exit)
 root.style = ttk.Style()
-#('clam', 'alt', 'default', 'classic')
+# ('clam', 'alt', 'default', 'classic')
 root.style.theme_use("clam")
-root.style.configure('TButton', font='helvetica 24')
-root.style.configure("Horizontal.TProgressbar", foreground='blue', background='#1da1f2', height=100)
-root.style.configure('TLabel', background='white')
+root.style.configure("TButton", font="helvetica 24")
+root.style.configure(
+    "Horizontal.TProgressbar", foreground="blue", background="#1da1f2", height=100
+)
+root.style.configure("TLabel", background="white")
 
 judgement_class_widget = ttk.OptionMenu(mainframe, judgement_class, *judgement_choices)
 judgement_class.set("")
@@ -205,10 +212,10 @@ ttk.Label(mainframe, textvariable=risk, wraplength=wrap).grid(
     column=2, row=7, sticky=(W, E)
 )
 status = Frame(root)
-progressbar=ttk.Progressbar(status, orient="horizontal", length=w, mode="determinate")
+progressbar = ttk.Progressbar(status, orient="horizontal", length=w, mode="determinate")
 status.pack(side=BOTTOM, fill=X, expand=False)
 progressbar.pack(side=BOTTOM, ipady=10)
-progressbar['maximum'] = len(data)
+progressbar["maximum"] = len(data)
 
 for child in mainframe.winfo_children():
     child.grid_configure(padx=5, pady=5)
