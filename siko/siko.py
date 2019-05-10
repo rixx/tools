@@ -9,6 +9,7 @@ root = Tk()
 w, h = root.winfo_screenwidth(), root.winfo_screenheight()
 root.title("SiKo for Dummies")
 root.geometry(f'{w}x{h}+0+0')
+root.config(background='white')
 
 question = StringVar()
 hint = StringVar()
@@ -158,8 +159,10 @@ judgement_choices = judgement_de if language == "de" else judgement_en
 
 scrollbar.pack(side=RIGHT, fill=Y)
 canvas.pack(side=LEFT)
+canvas.config(background='white')
 canvas.create_window((0, 0), window=mainframe, anchor='nw')
 mainframe.bind('<Configure>', lambda event: canvas.configure(scrollregion=canvas.bbox("all"), width=w - 30, height=h - 120))
+mainframe.config(background='white')
 
 root.bind("<Return>", submit)
 root.bind("<Shift-Return>", print_and_exit)
@@ -168,6 +171,7 @@ root.style = ttk.Style()
 root.style.theme_use("clam")
 root.style.configure('TButton', font='helvetica 24')
 root.style.configure("Horizontal.TProgressbar", foreground='blue', background='#1da1f2', height=100)
+root.style.configure('TLabel', background='white')
 
 judgement_class_widget = ttk.OptionMenu(mainframe, judgement_class, *judgement_choices)
 judgement_class.set("")
