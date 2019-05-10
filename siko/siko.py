@@ -192,5 +192,9 @@ for child in mainframe.winfo_children():
 judgement_widget.focus()
 root.bind("<Return>", submit)
 root.bind("<Shift-Return>", print_and_exit)
+root.style = ttk.Style()
+#('clam', 'alt', 'default', 'classic')
+root.style.theme_use("clam")
+root.style.configure('TButton', font='helvetica 24')
 
 root.mainloop()
