@@ -6,7 +6,9 @@ from tkinter import font
 
 
 root = Tk()
+w, h = root.winfo_screenwidth(), root.winfo_screenheight()
 root.title("SiKo for Dummies")
+root.geometry(f'{w}x{h}+0+0')
 
 question = StringVar()
 hint = StringVar()
@@ -88,6 +90,7 @@ def switch_to_next():
     current_index += 1
     if current_index >= len(data):
         raise Exception("Out of bounds")
+    progressbar['value'] = current_index + 1
     current = data[current_index]
     question.set(current["Description"])
     hint.set(current["Notice"])
@@ -106,11 +109,12 @@ def switch_to_next():
     risk.set(current["Risk ID"])
 
 
-mainframe = Frame(root)
-mainframe.grid(column=0, row=0, sticky=(N, W, E, S))
-mainframe.columnconfigure(0, weight=1)
-mainframe.rowconfigure(0, weight=1)
-mainframe.pack(pady=100, padx=100)
+frame = Frame(root,relief=GROOVE,width=50,height=100,bd=1)
+frame.place(x=10,y=10)
+canvas = Canvas(frame)
+mainframe = Frame(canvas)
+scrollbar = Scrollbar(frame, orient=VERTICAL, command=canvas.yview)
+canvas.config(yscrollcommand=scrollbar.set)
 
 default_font = font.nametofont("TkDefaultFont")
 default_font.configure(size=18)
@@ -151,6 +155,20 @@ judgement_de = [
 ]
 judgement_choices = judgement_de if language == "de" else judgement_en
 
+
+scrollbar.pack(side=RIGHT, fill=Y)
+canvas.pack(side=LEFT)
+canvas.create_window((0, 0), window=mainframe, anchor='nw')
+mainframe.bind('<Configure>', lambda event: canvas.configure(scrollregion=canvas.bbox("all"), width=w - 30, height=h - 120))
+
+root.bind("<Return>", submit)
+root.bind("<Shift-Return>", print_and_exit)
+root.style = ttk.Style()
+#('clam', 'alt', 'default', 'classic')
+root.style.theme_use("clam")
+root.style.configure('TButton', font='helvetica 24')
+root.style.configure("Horizontal.TProgressbar", foreground='blue', background='#1da1f2', height=100)
+
 judgement_class_widget = ttk.OptionMenu(mainframe, judgement_class, *judgement_choices)
 judgement_class.set("")
 judgement_class_widget.grid(row=0, column=2)
@@ -160,41 +178,37 @@ judgement_widget.grid(column=2, row=1, sticky=(W, E))
 ttk.Button(mainframe, text="Next", command=submit).grid(column=8, row=1, sticky=W)
 
 wrap = 1400
-ttk.Label(mainframe, text="Requirement").grid(column=1, row=2, sticky=W)
+ttk.Label(mainframe, text="Requirement").grid(column=1, row=2, sticky=(N, E))
 requirement_label = ttk.Label(mainframe, textvariable=question, wraplength=wrap)
 requirement_label.grid(column=2, row=2, sticky=(W, E))
-ttk.Label(mainframe, text="Hint").grid(column=1, row=3, sticky=W)
+ttk.Label(mainframe, text="Hint").grid(column=1, row=3, sticky=(N, E))
 ttk.Label(mainframe, textvariable=hint, wraplength=wrap).grid(
     column=2, row=3, sticky=(W, E)
 )
-ttk.Label(mainframe, text="State").grid(column=1, row=4, sticky=W)
+ttk.Label(mainframe, text="State").grid(column=1, row=4, sticky=(N, E))
 state_label = ttk.Label(mainframe, textvariable=state, wraplength=wrap)
-state_label.grid(column=2, row=4, sticky=(W, E))
-ttk.Label(mainframe, text="Answer").grid(column=1, row=5, sticky=W)
+state_label.grid(column=2, row=4, sticky=W)
+ttk.Label(mainframe, text="Answer").grid(column=1, row=5, sticky=(N, E))
 ttk.Label(mainframe, textvariable=answer, wraplength=wrap).grid(
     column=2, row=5, sticky=(W, E)
 )
-ttk.Label(mainframe, text="Mitigation").grid(column=1, row=6, sticky=W)
+ttk.Label(mainframe, text="Mitigation").grid(column=1, row=6, sticky=(N, E))
 ttk.Label(mainframe, textvariable=mitigation, wraplength=wrap).grid(
     column=2, row=6, sticky=(W, E)
 )
-ttk.Label(mainframe, text="Risk ID").grid(column=1, row=7, sticky=W)
+ttk.Label(mainframe, text="Risk ID").grid(column=1, row=7, sticky=(N, E))
 ttk.Label(mainframe, textvariable=risk, wraplength=wrap).grid(
     column=2, row=7, sticky=(W, E)
 )
-
-switch_to_next()
-
+status = Frame(root)
+progressbar=ttk.Progressbar(status, orient="horizontal", length=w, mode="determinate")
+status.pack(side=BOTTOM, fill=X, expand=False)
+progressbar.pack(side=BOTTOM, ipady=10)
+progressbar['maximum'] = len(data)
 
 for child in mainframe.winfo_children():
     child.grid_configure(padx=5, pady=5)
 
+switch_to_next()
 judgement_widget.focus()
-root.bind("<Return>", submit)
-root.bind("<Shift-Return>", print_and_exit)
-root.style = ttk.Style()
-#('clam', 'alt', 'default', 'classic')
-root.style.theme_use("clam")
-root.style.configure('TButton', font='helvetica 24')
-
 root.mainloop()
