@@ -77,11 +77,39 @@ def get_data():
     raise Exception("No support for this file type yet.")
 
 
+states = {
+    "en": [
+        "Implementation dispendable",
+        "Implemented",
+        "Not completely implemented (risk)",
+        "To be answered",
+        "Not completely implemented (deviation)",
+    ],
+    "de": [
+        "Nicht relevant",
+        "Vollständig umgesetzt",
+        "Nicht vollständig umgesetzt (Risiko)",
+        "Offen",
+        "Nicht vollständig umgesetzt (Abweichung)",
+    ],
+}
+
+
 def derive_language(data):
     if "State of Implementation" in data[0]:
-        return "en"
+        state = data[0]["State of Implementation"]
+        hint = "en"
     elif "Umsetzungsstatus" in data[0]:
-        return "de"
+        state = data[0]["Umsetzungsstatus"]
+        hint = "de"
+    if not hint:
+        raise Exception("Cannot parse language")
+    anti_hint = "de" if hint == "en" else "en"
+    if state in states[hint]:
+        return hint
+    if state in states[anti_hint]:
+        print("Warning, document language does not match author language!")
+        return anti_hint
     raise Exception("Cannot derive language")
 
 
@@ -98,13 +126,7 @@ if language == "en":
         "mitigation": "Mitigating measure for deviation",
         "risk_id": "Risk ID",
     }
-    states = [
-        "Implementation dispendable",
-        "Implemented",
-        "Not completely implemented (risk)",
-        "To be answered",
-        "Not completely implemented (deviation)",
-    ]
+    states = states["en"]
     judgement_choices = [
         "The statement of reasons is not conclusive or does not meet the requirements.",
         "The evaluation did not address all sub-items of the guideline.",
@@ -133,13 +155,7 @@ elif language == "de":
         "mitigation": "Mitigierende Maßnahme für Abweichung",
         "risk_id": "Risikonummer",
     }
-    states = [
-        "Nicht relevant",
-        "Vollständig umgesetzt",
-        "Nicht vollständig umgesetzt (Risiko)",
-        "Offen",
-        "Nicht vollständig umgesetzt (Abweichung)",
-    ]
+    states = states["de"]
     judgement_choices = [
         "Die Begründung ist inhaltlich nicht schlüssig oder trifft die Vorgabe nicht.",
         "Bei der Bewertung wurde nicht auf alle Unterpunkte der Vorgabe eingegangen.",
