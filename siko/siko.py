@@ -1,8 +1,11 @@
 import csv
 import sys
+from io import StringIO
 from tkinter import *
 from tkinter import ttk
 from tkinter import font
+
+import pandas
 
 
 root = Tk()
@@ -62,6 +65,9 @@ def get_data():
     filename = sys.argv[-1]
     if filename.endswith(".csv"):
         return list(csv.DictReader(open(sys.argv[-1])))
+    elif filename.endswith(".xlsx"):
+        df = pandas.read_excel(open(sys.argv[-1], 'rb'))
+        return list(csv.DictReader(StringIO(df.to_csv())))
     raise Exception("No support for this file type yet.")
 
 
