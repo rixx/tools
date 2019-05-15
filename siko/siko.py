@@ -37,7 +37,7 @@ def submit(*args):
             evaluation.append(
                 [
                     f'{int(current["ID"]):04d}',
-                    current["Measure ID"].split("_")[0],
+                    current[columns["measure_id"]].split("_")[0],
                     "",
                     judgement_class.get() or judgement_choices[0],
                     judgement.get(),
@@ -65,25 +65,91 @@ def get_data():
     raise Exception("No support for this file type yet.")
 
 
-english_states = [
-    "Implementation dispendable",
-    "Implemented",
-    "Not completely implemented (risk)",
-    "To be answered",
-    "Not completely implemented (deviation)",
-]
-
-
 def derive_language(data):
-    for d in data:
-        state_value = d["State of Implementation"]
-        if not state_value.strip():
-            continue
-        return "en" if state_value in english_states else "de"
+    if "State of Implementation" in d[0]:
+        return "en"
+    elif "Umsetzungsstatus" in d[0]:
+        return "de"
+    raise Exception("Cannot derive language")
 
 
 data = get_data()
 language = derive_language(data)
+if language == "en":
+    columns = {
+        "id": "ID",
+        "measure_id": "Measure ID",
+        "description": "Description",
+        "notice": "Notice",
+        "state": "State of Implementation",
+        "justification": "Justification",
+        "mitigation": "Mitigating measure for deviation",
+        "risk_id": "Risk ID",
+    }
+    states = [
+        "Implementation dispendable",
+        "Implemented",
+        "Not completely implemented (risk)",
+        "To be answered",
+        "Not completely implemented (deviation)",
+    ]
+    judgement_choices = [
+        "The statement of reasons is not conclusive or does not meet the requirements.",
+        "The evaluation did not address all sub-items of the guideline.",
+        "The mitigating measures are missing or incomplete.",
+        "The mitigating measures do not eliminate the deviation.",
+        "Status and reason don't match.",
+        "The justification is not meaningful enough.",
+        "The explanatory statement does not describe how the implementation takes place.",
+        "Reason for deviation and mitigating measures are not cleanly separated.",
+        "The explanatory memorandum does not cover all aspects of the requirement.",
+        "The information on this specification is inconsistent with the information in other specifications.",
+        "Reference to external document does not refer to the chapter heading.",
+        "The results of the supplementary risk analysis were not taken  into account in the safety concept.",
+        "The existing risk was not transferred to risk management.",
+        "The alternative measures for the complete fulfilment of the protection goals are not comprehensibly documented.",
+        "The alternative measures to fully meet the protection objectives do not eliminate the deviation.",
+    ]
+elif language == "de":
+    columns = {
+        "id": "ID",
+        "measure_id": "Maßnahmen ID",
+        "description": "Beschreibung",
+        "notice": "Hinweis",
+        "state": "Umsetzungsstatus",
+        "justification": "Begründung",
+        "mitigation": "Mitigierende Maßnahme für Abweichung",
+        "risk_id": "Risikonummer",
+    }
+    states = [
+        "Nicht relevant",
+        "Vollständig umgesetzt",
+        "Nicht vollständig umgesetzt (Risiko)",
+        "Offen",
+        "Nicht vollständig umgesetzt (Abweichung)",
+    ]
+    judgement_choices = [
+        "Die Begründung ist inhaltlich nicht schlüssig oder trifft die Vorgabe nicht.",
+        "Bei der Bewertung wurde nicht auf alle Unterpunkte der Vorgabe eingegangen.",
+        "Die mitigierenden Maßnahmen fehlen oder sind unvollständig.",
+        "Die mitigierenden Maßnahmen beseitigen nicht die Abweichung.",
+        "Status und Begründung passen nicht zusammen.",
+        "Die Begründung ist nicht aussagekräftig genug.",
+        "Die Begründung beschreibt nicht, wie die Umsetzung erfolgt.",
+        "Grund der Abweichung und mitigierende Maßnahmen sind nicht sauber getrennt.",
+        "In der Begründung wird nicht auf alle Aspekte der Vorgabe eingegangen.",
+        "Die Angaben zu dieser Vorgabe widersprechen den Angaben in anderen Vorgaben.",
+        "Referenz auf externes Dokument verweist nicht auf die Kapitelüberschrift.",
+        "Die Ergebnisse der ergänzenden Risikoanalyse wurde nicht angemessen im Sicherheitskonzept berücksichtigt.",
+        "Das bestehende (Rest-)Risiko wurde nicht in das Risikomanagement überführt.",
+        "Die alternative Maßnahmen zur vollständigen Erfüllung der Schutzziele sind nicht nachvollziehbar dokumentiert.",
+        "Die alternative Maßnahmen zur vollständigen Erfüllung der Schutzziele beseitigen nicht die Abweichung.",
+    ]
+
+
+state_implemented = states[1]
+state_risk = sttes[2]
+state_deviation = states[4]
 
 
 def switch_to_next():
@@ -93,21 +159,21 @@ def switch_to_next():
         raise Exception("Out of bounds")
     progressbar["value"] = current_index + 1
     current = data[current_index]
-    question.set(current["Description"])
-    hint.set(current["Notice"])
-    state_value = current["State of Implementation"]
+    question.set(current[columns["description"]])
+    hint.set(current[columns["notice"]])
+    state_value = current[columns["state"]]
     state.set(state_value)
-    answer.set(current["Justification"])
-    if state_value in ["Implemented"]:
+    answer.set(current[columns["justification"]])
+    if state_value == state_implemented:
         state_label.configure(background="green")
-    elif state_value in ["Not completely implemented (deviation)"]:
+    elif state_value == state_deviation:
         state_label.configure(background="yellow")
-    elif state_value in ["Not completely implemented (risk)"]:
+    elif state_value in state_risk:
         state_label.configure(background="red")
     else:
         state_label.configure(background="gray")
-    mitigation.set(current["Mitigating measure for deviation"])
-    risk.set(current["Risk ID"])
+    mitigation.set(current[columns["mitigation"]])
+    risk.set(current[columns["risk_id"]])
 
 
 frame = Frame(root, relief=GROOVE, width=50, height=100, bd=1)
@@ -119,43 +185,6 @@ canvas.config(yscrollcommand=scrollbar.set)
 
 default_font = font.nametofont("TkDefaultFont")
 default_font.configure(size=18)
-
-judgement_en = [
-    "The statement of reasons is not conclusive or does not meet the requirements.",
-    "The evaluation did not address all sub-items of the guideline.",
-    "The mitigating measures are missing or incomplete.",
-    "The mitigating measures do not eliminate the deviation.",
-    "Status and reason don't match.",
-    "The justification is not meaningful enough.",
-    "The explanatory statement does not describe how the implementation takes place.",
-    "Reason for deviation and mitigating measures are not cleanly separated.",
-    "The explanatory memorandum does not cover all aspects of the requirement.",
-    "The information on this specification is inconsistent with the information in other specifications.",
-    "Reference to external document does not refer to the chapter heading.",
-    "The results of the supplementary risk analysis were not taken  into account in the safety concept.",
-    "The existing risk was not transferred to risk management.",
-    "The alternative measures for the complete fulfilment of the protection goals are not comprehensibly documented.",
-    "The alternative measures to fully meet the protection objectives do not eliminate the deviation.",
-]
-judgement_de = [
-    "Die Begründung ist inhaltlich nicht schlüssig oder trifft die Vorgabe nicht.",
-    "Bei der Bewertung wurde nicht auf alle Unterpunkte der Vorgabe eingegangen.",
-    "Die mitigierenden Maßnahmen fehlen oder sind unvollständig.",
-    "Die mitigierenden Maßnahmen beseitigen nicht die Abweichung.",
-    "Status und Begründung passen nicht zusammen.",
-    "Die Begründung ist nicht aussagekräftig genug.",
-    "Die Begründung beschreibt nicht, wie die Umsetzung erfolgt.",
-    "Grund der Abweichung und mitigierende Maßnahmen sind nicht sauber getrennt.",
-    "In der Begründung wird nicht auf alle Aspekte der Vorgabe eingegangen.",
-    "Die Angaben zu dieser Vorgabe widersprechen den Angaben in anderen Vorgaben.",
-    "Referenz auf externes Dokument verweist nicht auf die Kapitelüberschrift.",
-    "Die Ergebnisse der ergänzenden Risikoanalyse wurde nicht angemessen im Sicherheitskonzept berücksichtigt.",
-    "Das bestehende (Rest-)Risiko wurde nicht in das Risikomanagement überführt.",
-    "Die alternative Maßnahmen zur vollständigen Erfüllung der Schutzziele sind nicht nachvollziehbar dokumentiert.",
-    "Die alternative Maßnahmen zur vollständigen Erfüllung der Schutzziele beseitigen nicht die Abweichung.",
-]
-judgement_choices = judgement_de if language == "de" else judgement_en
-
 
 scrollbar.pack(side=RIGHT, fill=Y)
 canvas.pack(side=LEFT)
