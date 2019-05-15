@@ -170,6 +170,9 @@ def switch_to_next():
     if current_index >= len(data):
         raise Exception("Out of bounds")
     progressbar["value"] = current_index + 1
+    root.style.configure(
+        "LabeledProgressbar", text=f"{current_index + 1} / {len(data)}"
+    )
     current = data[current_index]
     question.set(current[columns["description"]])
     hint.set(current[columns["notice"]])
@@ -212,12 +215,28 @@ mainframe.config(background="white")
 
 root.bind("<Return>", submit)
 root.bind("<Shift-Return>", print_and_exit)
-root.style = ttk.Style()
+root.style = ttk.Style(root)
+root.style.layout(
+    "LabeledProgressbar",
+    [
+        (
+            "LabeledProgressbar.trough",
+            {
+                "children": [
+                    ("LabeledProgressbar.pbar", {"side": "left", "sticky": "ns"}),
+                    ("LabeledProgressbar.label", {"sticky": ""}),
+                ],
+                "sticky": "nswe",
+            },
+        )
+    ],
+)
+root.style.configure("LabeledProgressbar", text="0 %      ")
 # ('clam', 'alt', 'default', 'classic')
 root.style.theme_use("clam")
 root.style.configure("TButton", font="helvetica 24")
 root.style.configure(
-    "Horizontal.TProgressbar", foreground="blue", background="#1da1f2", height=100
+    "LabeledProgressbar", foreground="#666", background="#1da1f2", height=100
 )
 root.style.configure("TLabel", background="white")
 
@@ -253,7 +272,13 @@ ttk.Label(mainframe, textvariable=risk, wraplength=wrap).grid(
     column=2, row=7, sticky=(W, E)
 )
 status = Frame(root)
-progressbar = ttk.Progressbar(status, orient="horizontal", length=w, mode="determinate")
+progressbar = ttk.Progressbar(
+    status,
+    orient="horizontal",
+    length=w,
+    mode="determinate",
+    style="LabeledProgressbar",
+)
 status.pack(side=BOTTOM, fill=X, expand=False)
 progressbar.pack(side=BOTTOM, ipady=10)
 progressbar["maximum"] = len(data)
