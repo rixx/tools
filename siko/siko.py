@@ -66,9 +66,9 @@ def get_data():
 
 
 def derive_language(data):
-    if "State of Implementation" in d[0]:
+    if "State of Implementation" in data[0]:
         return "en"
-    elif "Umsetzungsstatus" in d[0]:
+    elif "Umsetzungsstatus" in data[0]:
         return "de"
     raise Exception("Cannot derive language")
 
@@ -148,7 +148,7 @@ elif language == "de":
 
 
 state_implemented = states[1]
-state_risk = sttes[2]
+state_risk = states[2]
 state_deviation = states[4]
 
 
