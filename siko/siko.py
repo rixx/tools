@@ -48,17 +48,23 @@ def submit(*args):
             )
         reset()
         switch_to_next()
-    except Exception:
+    except Exception as e:
+        print("EXCEPTION! " + str(e))
         print_and_exit()
 
 
 def print_and_exit(*args):
-    writer = csv.writer(sys.stdout)
-    writer.writerows(evaluation)
-    with open(sys.argv[-1].split(".")[0] + "_result.csv", "w") as csvfile:
-        writer = csv.writer(csvfile)
+    try:
+        writer = csv.writer(sys.stdout)
         writer.writerows(evaluation)
-    sys.exit()
+        with open(sys.argv[-1].split(".")[0] + "_result.csv", "w") as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerows(evaluation)
+        sys.exit()
+    except Exception as e:
+        print("EXCEPTION! " + str(e))
+        for row in evaluation:
+            print(",".join(f'"{value}"' for value in row))
 
 
 def get_data():
@@ -66,7 +72,7 @@ def get_data():
     if filename.endswith(".csv"):
         return list(csv.DictReader(open(sys.argv[-1])))
     elif filename.endswith(".xlsx"):
-        df = pandas.read_excel(open(sys.argv[-1], 'rb'))
+        df = pandas.read_excel(open(sys.argv[-1], "rb"))
         return list(csv.DictReader(StringIO(df.to_csv())))
     raise Exception("No support for this file type yet.")
 
