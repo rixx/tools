@@ -72,8 +72,14 @@ def get_data():
     if filename.endswith(".csv"):
         return list(csv.DictReader(open(sys.argv[-1])))
     elif filename.endswith(".xlsx"):
-        df = pandas.read_excel(open(sys.argv[-1], "rb"), sheet_name=1)
-        return list(csv.DictReader(StringIO(df.to_csv())))
+        try:
+            for sheet in range(2):
+                df = pandas.read_excel(open(sys.argv[-1], "rb"), sheet_name=sheet)
+                data = list(csv.DictReader(StringIO(df.to_csv())))
+                if 'ID' in data[0]:
+                    return data
+        except Exception as e:
+            print(e)
     raise Exception("No support for this file type yet.")
 
 
