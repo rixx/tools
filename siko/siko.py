@@ -168,14 +168,30 @@ if column_language == "en":
 elif column_language == "de":
     columns = {
         "id": "ID",
-        "measure_id": "Maßnahmen ID",
+        "measure_id": ["Maßnahmen ID", "Maßnahmen-ID"],
         "description": "Beschreibung",
         "notice": "Hinweis",
         "state": "Umsetzungsstatus",
         "justification": "Begründung",
-        "mitigation": "Mitigierende Maßnahme für Abweichung",
+        "mitigation": ["Mitigierende Maßnahme für Abweichung", "Mitigierende Maßnahme"],
         "risk_id": "Risikonummer",
     }
+
+
+for column_id, column_value in columns.items():
+    column_values = ', '.join(data[0].keys())
+    if isinstance(column_value, list):
+        real_value = None
+        for possible_value in column_value:
+            if possible_value in data[0]:
+                real_value = possible_value
+        if real_value:
+            columns[column_id] = real_value
+        else:
+            raise Exception(f"{column_id} not found, neither of {column_value} fits! Columns available are {column_values}")
+    else:
+        if column_value not in data[0]:
+            raise Exception(f"{column_value} not found! Columns available are {column_values}")
 
 
 state_implemented = states[1]
