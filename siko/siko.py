@@ -96,17 +96,18 @@ states = {
 
 
 def derive_language(data):
+    lang_hint = None
     if "State of Implementation" in data[0]:
         state = data[0]["State of Implementation"]
-        hint = "en"
+        lang_hint = "en"
     elif "Umsetzungsstatus" in data[0]:
         state = data[0]["Umsetzungsstatus"]
-        hint = "de"
-    if not hint:
-        raise Exception("Cannot parse language")
-    anti_hint = "de" if hint == "en" else "en"
-    if state in states[hint]:
-        return hint
+        lang_hint = "de"
+    if not lang_hint:
+        raise Exception(f"Cannot parse language: what even is '{data[0]}'")
+    anti_hint = "de" if lang_hint == "en" else "en"
+    if state in states[lang_hint]:
+        return lang_hint
     if state in states[anti_hint]:
         print("Warning, document language does not match author language!")
         return anti_hint
