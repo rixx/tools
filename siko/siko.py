@@ -107,26 +107,16 @@ def derive_language(data):
         raise Exception(f"Cannot parse language: what even is '{data[0]}'")
     anti_hint = "de" if lang_hint == "en" else "en"
     if state in states[lang_hint]:
-        return lang_hint
+        return lang_hint, lang_hint
     if state in states[anti_hint]:
         print("Warning, document language does not match author language!")
-        return anti_hint
+        return anti_hint, lang_hint
     raise Exception("Cannot derive language")
 
 
 data = get_data()
-language = derive_language(data)
-if language == "en":
-    columns = {
-        "id": "ID",
-        "measure_id": "Measure ID",
-        "description": "Description",
-        "notice": "Notice",
-        "state": "State of Implementation",
-        "justification": "Justification",
-        "mitigation": "Mitigating measure for deviation",
-        "risk_id": "Risk ID",
-    }
+content_language, column_language = derive_language(data)
+if content_language == "en":
     states = states["en"]
     judgement_choices = [
         "The statement of reasons is not conclusive or does not meet the requirements.",
@@ -145,17 +135,7 @@ if language == "en":
         "The alternative measures for the complete fulfilment of the protection goals are not comprehensibly documented.",
         "The alternative measures to fully meet the protection objectives do not eliminate the deviation.",
     ]
-elif language == "de":
-    columns = {
-        "id": "ID",
-        "measure_id": "Maßnahmen ID",
-        "description": "Beschreibung",
-        "notice": "Hinweis",
-        "state": "Umsetzungsstatus",
-        "justification": "Begründung",
-        "mitigation": "Mitigierende Maßnahme für Abweichung",
-        "risk_id": "Risikonummer",
-    }
+elif content_language == "de":
     states = states["de"]
     judgement_choices = [
         "Die Begründung ist inhaltlich nicht schlüssig oder trifft die Vorgabe nicht.",
@@ -174,6 +154,28 @@ elif language == "de":
         "Die alternative Maßnahmen zur vollständigen Erfüllung der Schutzziele sind nicht nachvollziehbar dokumentiert.",
         "Die alternative Maßnahmen zur vollständigen Erfüllung der Schutzziele beseitigen nicht die Abweichung.",
     ]
+if column_language == "en":
+    columns = {
+        "id": "ID",
+        "measure_id": "Measure ID",
+        "description": "Description",
+        "notice": "Notice",
+        "state": "State of Implementation",
+        "justification": "Justification",
+        "mitigation": "Mitigating measure for deviation",
+        "risk_id": "Risk ID",
+    }
+elif column_language == "de":
+    columns = {
+        "id": "ID",
+        "measure_id": "Maßnahmen ID",
+        "description": "Beschreibung",
+        "notice": "Hinweis",
+        "state": "Umsetzungsstatus",
+        "justification": "Begründung",
+        "mitigation": "Mitigierende Maßnahme für Abweichung",
+        "risk_id": "Risikonummer",
+    }
 
 
 state_implemented = states[1]
