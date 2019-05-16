@@ -72,7 +72,7 @@ def get_data():
     if filename.endswith(".csv"):
         return list(csv.DictReader(open(sys.argv[-1])))
     elif filename.endswith(".xlsx"):
-        df = pandas.read_excel(open(sys.argv[-1], "rb"))
+        df = pandas.read_excel(open(sys.argv[-1], "rb"), sheet_name=1)
         return list(csv.DictReader(StringIO(df.to_csv())))
     raise Exception("No support for this file type yet.")
 
