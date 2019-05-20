@@ -76,7 +76,7 @@ def get_data():
             for sheet in range(2):
                 df = pandas.read_excel(open(sys.argv[-1], "rb"), sheet_name=sheet)
                 data = list(csv.DictReader(StringIO(df.to_csv())))
-                if 'ID' in data[0]:
+                if "ID" in data[0]:
                     return data
         except Exception as e:
             print(e)
@@ -185,7 +185,7 @@ elif column_language == "de":
 
 
 for column_id, column_value in columns.items():
-    column_values = ', '.join(data[0].keys())
+    column_values = ", ".join(data[0].keys())
     if isinstance(column_value, list):
         real_value = None
         for possible_value in column_value:
@@ -194,10 +194,14 @@ for column_id, column_value in columns.items():
         if real_value:
             columns[column_id] = real_value
         else:
-            raise Exception(f"{column_id} not found, neither of {column_value} fits! Columns available are {column_values}")
+            raise Exception(
+                f"{column_id} not found, neither of {column_value} fits! Columns available are {column_values}"
+            )
     else:
         if column_value not in data[0]:
-            raise Exception(f"{column_value} not found! Columns available are {column_values}")
+            raise Exception(
+                f"{column_value} not found! Columns available are {column_values}"
+            )
 
 
 state_implemented = states[1]
