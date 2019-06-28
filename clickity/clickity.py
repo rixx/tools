@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from itertools import repeat
 import random
 import requests
 import sys
@@ -23,7 +24,7 @@ BUCKETS = [
         18: int(DAILY * 0.07 + random.randint(-10, 10)),
         19: int(DAILY * 0.05 + random.randint(-10, 10)),
     }
-    for _ in range(DAYS)
+    for _ in repeat(None, DAYS)
 ]
 BASE_PATH = []
 PATHS = [
@@ -89,7 +90,7 @@ def clickity():
                             old_bucket, old_day + 1, BUCKETS[old_day][old_bucket]
                         )
                     )
-                    for _ in range(BUCKETS[old_day][old_bucket]):
+                    for _ in repeat(None, BUCKETS[old_day][old_bucket]):
                         click()
                         total_downloaded += 1
                         BUCKETS[old_day][old_bucket] -= 1
