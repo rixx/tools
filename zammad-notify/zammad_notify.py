@@ -44,8 +44,9 @@ def limit_length(text, length):
 
 
 def send_notification(notification):
-    ticket = zammad_get(f'/api/v1/ticket_articles/by_ticket/{notification["o_id"]}')[0]
-    ticket_data = zammad_get(f'/api/v1/tickets/{notification["o_id"]}')
+    ticket_id = notification["o_id"]
+    ticket = zammad_get(f'/api/v1/ticket_articles/by_ticket/{ticket_id}')[0]
+    ticket_data = zammad_get(f'/api/v1/tickets/{ticket_id}')
     customer = zammad_get(f'/api/v1/users/{ticket_data["customer_id"]}')
     name = customer.get("firstname", " ") + " " + customer.get("lastname", "")
     name = name.strip()
@@ -58,7 +59,7 @@ def send_notification(notification):
         "user": config["pushover"]["user"],
         "title": limit_length(f"{ticket['subject']} ({name})", 250),
         "message": limit_length(ticket["body"], 1024),
-        "url": config["zammad"]["url"] + f'/#ticket/zoom/{notification["id"]}',
+        "url": config["zammad"]["url"] + f'/#ticket/zoom/{ticket_id}',
         "url_title": "Go to ticket",
         "sound": "none",
     }
