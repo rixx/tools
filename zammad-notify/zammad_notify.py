@@ -45,7 +45,7 @@ def limit_length(text, length):
 
 def send_notification(notification):
     ticket_id = notification["o_id"]
-    ticket = zammad_get(f'/api/v1/ticket_articles/by_ticket/{ticket_id}')[0]
+    ticket = zammad_get(f'/api/v1/ticket_articles/by_ticket/{ticket_id}')[-1]
     ticket_data = zammad_get(f'/api/v1/tickets/{ticket_id}')
     customer = zammad_get(f'/api/v1/users/{ticket_data["customer_id"]}')
     name = customer.get("firstname", " ") + " " + customer.get("lastname", "")
