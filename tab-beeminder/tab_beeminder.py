@@ -58,7 +58,9 @@ def get_current_tab_count():
     return tab_count
 
 
-def needs_update(old_value, current_value):
+def needs_update(current_value, old_value):
+    if old_value is None:
+        return True
     mode = config.get('beeminder', 'mode')
     if mode == 'update':
         return True
@@ -67,19 +69,12 @@ def needs_update(old_value, current_value):
     return old_value < current_value
 
 
-def get_tab_count():
-    current_count = get_current_tab_count()
+def get_historical_tab_count():
     historic_data = {}
     with suppress(FileNotFoundError):
         with open('tab-beeminder.json') as f:
             historic_data = json.load(f)
-    today = dt.datetime.now().strftime('%Y%m%d')
-    old_value = historic_data.get(today)
-    if old_value is None or needs_update(old_value, current_count):
-        historic_data[today] = current_count
-        with open('tab-beeminder.json', 'w') as f:
-            json.dump(historic_data, f, indent=4)
-        return current_count
+    return historic_data
 
 
 def submit_tab_count(tab_count):
@@ -92,24 +87,28 @@ def submit_tab_count(tab_count):
         'daystamp': dt.datetime.now().strftime('%Y-%m-%d'),
         'value': tab_count,
     }
-    base_url = f'https://beeminder.com/api/v1/users/{user}/goals/{goal}/datapoints'
-    url = f'{base_url}.json?auth_token={auth_token}'
+    base_url = f'https://www.beeminder.com/api/v1/users/{user}/goals/{goal}/datapoints'
+    url = f'{base_url}.json'
     response = requests.post(url, data)
     response.raise_for_status()
-    response_data = response.json()[0]
+    response_data = response.json()
+    if isinstance(response_data, list):
+        response_data = response_data[0]
     if response_data["value"] != tab_count:
-        url = f'{base_url}/{response_data["id"]}.json?auth_token={auth_token}'
-        data['_method'] = 'PUT'
-        response = requests.post(url, data)
+        url = f'{base_url}/{response_data["id"]}.json'
+        response = requests.put(url, data)
         response.raise_for_status()
-    print(response.content.decode())
 
 
 def main():
-    tab_count = get_tab_count()
-    if tab_count is not None:
+    historic_data = get_historical_tab_count()
+    tab_count = get_current_tab_count()
+    today = dt.datetime.now().strftime('%Y%m%d')
+    if needs_update(tab_count, historic_data.get(today)):
         submit_tab_count(tab_count)
-
+        historic_data[today] = tab_count
+        with open('tab-beeminder.json', 'w') as f:
+            json.dump(historic_data, f, indent=4)
 
 if __name__ == "__main__":
     main()
