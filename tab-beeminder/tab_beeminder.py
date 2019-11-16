@@ -10,9 +10,11 @@ from pathlib import Path
 import lz4.block
 import requests
 
+base_dir = Path(__file__).parent
 config = configparser.ConfigParser()
-config.read("tab-beeminder.cfg")
+config.read(base_dir / "tab-beeminder.cfg")
 config["DEFAULT"]["mode"] = "minimum"
+data_path = base_dir / "tab-beeminder.json"
 
 
 def get_firefox_profile_path():
@@ -76,7 +78,7 @@ def needs_update(current_value, old_value):
 def get_historical_tab_count():
     historic_data = {}
     with suppress(FileNotFoundError):
-        with open("tab-beeminder.json") as f:
+        with open(data_path) as f:
             historic_data = json.load(f)
     return historic_data
 
@@ -111,7 +113,7 @@ def main():
     if needs_update(tab_count, historic_data.get(today)):
         submit_tab_count(tab_count)
         historic_data[today] = tab_count
-        with open("tab-beeminder.json", "w") as f:
+        with open(data_path, "w") as f:
             json.dump(historic_data, f, indent=4)
 
 
