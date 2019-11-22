@@ -12,9 +12,9 @@ import requests
 
 base_dir = Path(__file__).parent
 config = configparser.ConfigParser()
-config.read(base_dir / "tab-beeminder.cfg")
+config.read(base_dir / "beeminder.cfg")
 config["DEFAULT"]["mode"] = "minimum"
-data_path = base_dir / "tab-beeminder.json"
+data_path = base_dir / "beeminder.json"
 
 
 def get_firefox_profile_path():
@@ -26,14 +26,14 @@ def get_firefox_profile_path():
     if len(possibilities) == 0:
         print(
             f"""Could not find Firefox profile in {basis}.
-Please put one in your tab-beeminder.cfg, like this:
+Please put one in your beeminder.cfg, like this:
 
 {example_config}"""
         )
     else:
         print(
             f"""I found more than one Firefox profile called "default", and now I am confused.
-Please tell me which to use in the tab-beeminder.cfg, like this:
+Please tell me which to use in the beeminder.cfg, like this:
 
 {example_config}
 
