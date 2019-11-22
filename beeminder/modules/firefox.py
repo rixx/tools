@@ -1,10 +1,9 @@
 import glob
 from pathlib import Path
-import datetime as dt
 import json
 import lz4.block
 
-from .utils import submit_data, needs_update
+from .utils import needs_update
 
 
 def get_firefox_profile_path():
@@ -54,14 +53,9 @@ def get_current_tab_count(config):
     return tab_count
 
 
-def handle_firefox(config, data):
+def handle_firefox(config, original_value):
     tab_count = get_current_tab_count(config)
-    today = dt.datetime.now().strftime("%Y%m%d")
     mode = config.get("goal:firefox", "mode")
     goal = config.get("goal:firefox", "goal")
-    data_today = data.get(today, {})
-    if needs_update(tab_count, data_today.get(goal), mode):
-        submit_data(config.get("goal:firefox", "goal"), tab_count, config)
-        data_today[goal] = tab_count
-        data[today] = data_today
-    return data
+    if needs_update(tab_count, original_value, mode):
+        return tab_count

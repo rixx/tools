@@ -56,4 +56,3 @@ def submit_data(goal, value, config):
         url = f'{base_url}/{response_data["id"]}.json'
         response = requests.put(url, data)
         response.raise_for_status()
-
