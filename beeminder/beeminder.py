@@ -22,7 +22,7 @@ def get_firefox_profile_path():
     possibilities = glob.glob(str(basis / "*default*"))
     if len(possibilities) == 1:
         return possibilities[0]
-    example_config = f"[firefox]\npath = {basis}…"
+    example_config = f"[goal:firefox]\npath = {basis}…"
     if len(possibilities) == 0:
         print(
             f"""Could not find Firefox profile in {basis}.
@@ -45,8 +45,8 @@ Possible profiles:"""
 
 
 def get_current_tab_count():
-    if "firefox" in config:
-        path = config["firefox"]["path"] or get_firefox_profile_path()
+    if "goal:firefox" in config:
+        path = config["goal:firefox"]["path"] or get_firefox_profile_path()
     else:
         path = get_firefox_profile_path()
     recovery_file = Path(path) / "sessionstore-backups/recovery.jsonlz4"
@@ -64,10 +64,9 @@ def get_current_tab_count():
     return tab_count
 
 
-def needs_update(current_value, old_value):
+def needs_update(current_value, old_value, mode):
     if old_value is None:
         return True
-    mode = config.get("beeminder", "mode")
     if mode == "update":
         return True
     if mode == "minimum":
@@ -83,15 +82,14 @@ def get_historical_tab_count():
     return historic_data
 
 
-def submit_tab_count(tab_count):
+def submit_data(goal, value):
     bee_config = config["beeminder"]
     user = bee_config["username"]
-    goal = bee_config["goal"]
     auth_token = bee_config["auth_token"]
     data = {
         "auth_token": auth_token,
         "daystamp": dt.datetime.now().strftime("%Y-%m-%d"),
-        "value": tab_count,
+        "value": value,
     }
     base_url = f"https://www.beeminder.com/api/v1/users/{user}/goals/{goal}/datapoints"
     url = f"{base_url}.json"
@@ -100,21 +98,31 @@ def submit_tab_count(tab_count):
     response_data = response.json()
     if isinstance(response_data, list):
         response_data = response_data[0]
-    if response_data["value"] != tab_count:
+    if response_data["value"] != value:
         url = f'{base_url}/{response_data["id"]}.json'
         response = requests.put(url, data)
         response.raise_for_status()
 
 
-def main():
+def handle_firefox():
     historic_data = get_historical_tab_count()
     tab_count = get_current_tab_count()
+    mode = config.get("goal:firefox", "mode")
     today = dt.datetime.now().strftime("%Y%m%d")
-    if needs_update(tab_count, historic_data.get(today)):
-        submit_tab_count(tab_count)
+    if needs_update(tab_count, historic_data.get(today), mode):
+        submit_data(config.get("goal:firefox", "goal"), tab_count)
         historic_data[today] = tab_count
         with open(data_path, "w") as f:
             json.dump(historic_data, f, indent=4)
+
+
+def main():
+    goal_mapping = {
+        "firefox": handle_firefox
+    }
+    for key, value in goal_mapping.items():
+        if f"goal:{key}" in config:
+            value()
 
 
 if __name__ == "__main__":
