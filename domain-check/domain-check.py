@@ -38,10 +38,12 @@ def cli():
 def check(source, remove_success):
     """ Run a check on the existing domains. """
     domains = get_domains(source)
+    click.echo(f"Found {len(domains)} domains.")
     check_domains(domains)
     if remove_success:
         domains = [d for d in domains if not d["valid_ssl"]]
     save_domains(domains, source)
+    click.echo(f"Saved {len(domains)} domains.")
 
 
 @cli.command()
@@ -167,11 +169,17 @@ def check_domain(data):
         pass
 
 
-def check_domains(data):
+def check_domains(data, path):
     progress_bar = tqdm(desc="Checking domains", total=len(data))
+    last_save = dt.datetime.now()
+    check_interval = dt.timedelta(minutes=5)
     for domain in data:
         check_domain(domain)
         progress_bar.update(1)
+        if dt.datetime.now() - last_save > check_interval:
+            click.echo("Checkpoint reached, saving data.")
+            save_domains(data, path)
+            last_save = dt.datetime.now()
     progress_bar.close()
 
 
