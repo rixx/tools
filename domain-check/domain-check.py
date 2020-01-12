@@ -141,6 +141,7 @@ def check_domain(data):
         response.raise_for_status()
         data["has_ssl"] = True
         data["valid_ssl"] = True
+        data["last_success"] = dt.datetime.now()
         return
     except requests.exceptions.SSLError:
         with suppress(Exception):
