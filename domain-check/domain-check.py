@@ -134,7 +134,6 @@ def check_domain(data):
         data["valid_ssl"] = False
         return
 
-    data["last_seen"] = dt.datetime.now()
     for entry in response:
         if entry[0] == socket.AddressFamily.AF_INET:
             data["has_dns4"] = True
@@ -148,6 +147,7 @@ def check_domain(data):
         response = requests.get(f"http://{domain}", timeout=10)
         response.raise_for_status()
         data["has_http"] = True
+        data["last_seen"] = dt.datetime.now()
     except:
         data["has_http"] = False
         data["has_ssl"] = False
