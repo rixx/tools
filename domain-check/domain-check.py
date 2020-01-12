@@ -43,7 +43,7 @@ def check(source, remove_success):
     """ Run a check on the existing domains. """
     domains = get_domains(source)
     click.echo(f"Found {len(domains)} domains.")
-    check_domains(domains, source)
+    check_domains(domains, source, records_only=records_only)
     if remove_success:
         domains = [d for d in domains if not d["valid_ssl"]]
     save_domains(domains, source)
@@ -145,7 +145,7 @@ def check_domain(data):
         return
 
     try:
-        response = requests.get(f"http://{domain}")
+        response = requests.get(f"http://{domain}", timeout=10)
         response.raise_for_status()
         data["has_http"] = True
     except:
@@ -157,7 +157,7 @@ def check_domain(data):
     data["has_ssl"] = False
     data["valid_ssl"] = False
     try:
-        response = requests.get(f"https://{domain}")
+        response = requests.get(f"https://{domain}", timeout=10)
         response.raise_for_status()
         data["has_ssl"] = True
         data["valid_ssl"] = True
@@ -165,7 +165,7 @@ def check_domain(data):
         return
     except requests.exceptions.SSLError:
         with suppress(Exception):
-            response = requests.get(f"https://{domain}", verify=False)
+            response = requests.get(f"https://{domain}", verify=False, timeout=10)
             response.raise_for_status()
             data["has_ssl"] = True
             data["valid_ssl"] = False
