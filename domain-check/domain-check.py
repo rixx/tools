@@ -33,10 +33,7 @@ def cli():
     help="Path to load domains from and to save them after processing.",
 )
 @click.option(
-    "--remove-success",
-    type=bool,
-    default=False,
-    help="Only keep error cases.",
+    "--remove-success", type=bool, default=False, help="Only keep error cases."
 )
 def check(source, remove_success):
     """ Run a check on the existing domains. """
@@ -58,6 +55,22 @@ def check(source, remove_success):
 def report(source):
     """ Report the current results. """
     domains = get_domains(source)
+
+    def percent(number, total=len(domains)):
+        value = number * 100 / total
+        return f"{value:.3}%"
+
+    seen_count = len([d for d in domains if d["last_seen"]])
+    ssl_count = len([d for d in domains if d["valid_ssl"]])
+    v6_count = len([d for d in domains if d["has_dns6"]])
+    table = []
+    table.append(("Seen", str(seen_count), percent(seen_count)))
+    table.append(("HTTPS", str(ssl_count), percent(ssl_count)))
+    table.append(("v6", str(v6_count), percent(v6_count)))
+    table.append(("Total", str(len(domains)), ""))
+
+    for row in table:
+        print(row[0].ljust(10) + row[1].rjust(10) + row[2].rjust(10))
 
 
 def get_domains(path):
@@ -89,7 +102,7 @@ def normalise_domain(data):
     for timestamp in ("last_seen", "last_success"):
         if result[timestamp]:
             result[timestamp] = dt.datetime.strptime(
-                result[timestamp], "%Y-%m-%dT%H:%M:%S.%fZ"
+                result[timestamp], "%Y-%m-%dT%H:%M:%S.%f"
             )
     return result
 
@@ -98,6 +111,7 @@ def save_domains(data, path):
     def sensible(value):
         if isinstance(value, dt.datetime):
             return value.isoformat()
+
     with open(path, "w") as f:
         json.dump(data, f, indent=4, default=sensible)
 
