@@ -15,7 +15,11 @@ from contextlib import suppress
 
 import click
 import requests
+import urllib3
 from tqdm import tqdm
+
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 @click.group()
