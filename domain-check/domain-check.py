@@ -32,10 +32,18 @@ def cli():
     default="domains.json",
     help="Path to load domains from and to save them after processing.",
 )
-def check(source):
+@click.option(
+    "--remove-success",
+    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    default=False,
+    help="Only keep error cases.",
+)
+def check(source, remove_success):
     """ Run a check on the existing domains. """
     domains = get_domains(source)
     check_domains(domains)
+    if remove_success:
+        domains = [d for d in domains if not d["valid_ssl"]]
     save_domains(domains, source)
 
 
