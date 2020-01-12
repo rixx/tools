@@ -34,7 +34,7 @@ def cli():
 )
 @click.option(
     "--remove-success",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=False),
+    type=bool,
     default=False,
     help="Only keep error cases.",
 )
