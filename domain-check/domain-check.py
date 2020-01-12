@@ -39,7 +39,7 @@ def check(source, remove_success):
     """ Run a check on the existing domains. """
     domains = get_domains(source)
     click.echo(f"Found {len(domains)} domains.")
-    check_domains(domains)
+    check_domains(domains, source)
     if remove_success:
         domains = [d for d in domains if not d["valid_ssl"]]
     save_domains(domains, source)
