@@ -95,8 +95,11 @@ def normalise_domain(data):
 
 
 def save_domains(data, path):
+    def sensible(value):
+        if isinstance(value, dt.datetime):
+            return value.isoformat()
     with open(path, "w") as f:
-        json.dump(data, f, indent=4)
+        json.dump(data, f, indent=4, default=sensible)
 
 
 def check_domain(data):
