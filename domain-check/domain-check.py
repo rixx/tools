@@ -70,11 +70,13 @@ def report(source):
     seen_count = len([d for d in domains if d["last_seen"]])
     ssl_count = len([d for d in domains if d["valid_ssl"]])
     v6_count = len([d for d in domains if d["has_dns6"]])
+    v6_only_count = len([d for d in domains if d["has_dns6"] and not d["has_dns4"]])
     table = []
     table.append(("Has DNS", str(dns_count), percent(dns_count)))
     table.append(("Seen", str(seen_count), percent(seen_count)))
     table.append(("HTTPS", str(ssl_count), percent(ssl_count)))
     table.append(("v6", str(v6_count), percent(v6_count)))
+    table.append(("v6-only", str(v6_only_count), percent(v6_only_count)))
     table.append(("Total", str(len(domains)), ""))
 
     for row in table:
