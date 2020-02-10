@@ -6,7 +6,7 @@ import sys
 
 
 CONFIG = "/etc/px.conf"
-NGINX = "/etc/nginx/sites/*.conf"
+NGINX = "/etc/nginx/sites/pretalx.conf"
 SOCKET = "/run/gunicorn/pretalx_{}"
 
 
