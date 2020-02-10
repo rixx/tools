@@ -1,0 +1,140 @@
+#!/bin/env python3
+import json
+import os
+import sys
+
+
+CONFIG = "/etc/px.conf"
+NGINX = "/etc/nginx/sites/*.conf"
+SOCKET = "/run/gunicorn/pretalx_{}"
+
+
+def print_help():
+    message = """px is a pretalx helper tool, made for pretalx.com
+
+Usage:
+  px status  Show information on the currently running pretalx
+  px run     Run a command with the current pretalx, e.g. px run shell_scoped --override
+  px update  Update to a given git ref, or master, if none was given.
+"""
+    print(message)
+
+
+def get_config():
+    try:
+        with open(CONFIG, "r") as f:
+            config = json.load(f)
+    except Exception:
+        config = {
+            "user": "pretalx",
+            "venvs": ["green", "blue"],
+            "current": "green",
+            "version": None,
+        }
+        save_config(config=config)
+    return config
+
+
+def save_config(*, config):
+    with open(CONFIG, "w") as f:
+        json.dump(config, f, indent=4)
+
+
+def status(*, args):
+    config = get_config()
+    for key, value in config.items:
+        print(f"{key}: {value}")
+
+
+def run(*, args, env=None, config=None):
+    config = config or get_config()
+    if not env:
+        env = config.get("current")
+    if not env:
+        raise Exception("Can't determine venv to run command in.")
+    user = config["user"]
+    venv = config["current"]
+    path = f"/home/{user}/{venv}/bin/python"
+    output = subprocess.check_output(
+        ["sudo", "-i", "-u", user, path, "-m", "pretalx", *args]
+    )
+    print(output)
+
+
+def update(*, args):
+    if len(args) > 1:
+        raise Exception("update requires a single argument")
+    if len(args) == 0:
+        version = "master"
+    else:
+        version = args[0]
+    config = get_config()
+    user = config["user"]
+    current_venv = config["current"]
+    next_venv = [venv for venv in config["venvs"] if venv != current_venv][0]
+    path = f"/home/{user}/{venv}/bin/pip"
+    print("Installing new version …")
+    output = subprocess.check_output(
+        [
+            "sudo",
+            "-i",
+            "-u",
+            user,
+            path,
+            "install",
+            "-U",
+            f"git+git://github.com/pretalx/pretalx.git@{version}#egg=pretalx&subdirectory=src",
+        ]
+    )
+    print(output)
+    print("Migrating …")
+    run(args=["migrate"], env=next_env, config=config)
+    print("Rebuilding static files …")
+    run(args=["rebuild"], env=next_env, config=config)
+    print("Regenerating CSS …")
+    run(args=["regenerate_css"], env=next_env, config=config)
+    print("Stopping old celery worker …")
+    subprocess.check_output(["systemctl", "stop", f"pretalx-worker@{current_env}"])
+    subprocess.check_output(["systemctl", "disable", f"pretalx-worker@{current_env}"])
+    print("Starting new celery worker …")
+    subprocess.check_output(["systemctl", "start", f"pretalx-worker@{next_env}"])
+    subprocess.check_output(["systemctl", "enable", f"pretalx-worker@{next_env}"])
+    print("Starting new pretalx process …")
+    subprocess.check_output(["systemctl", "start", f"pretalx@{next_env}"])
+    subprocess.check_output(["systemctl", "enable", f"pretalx@{next_env}"])
+    print("Changing nginx config …")
+    subprocess.check_output(["sed", "-i", f"s/{current_env}/{next_env}/g", NGINX])
+    print("Reloading nginx …")
+    subprocess.check_output(["systemctl", "reload", "openresty"])
+    print("Stopping old pretalx process …")
+    subprocess.check_output(["systemctl", "stop", f"pretalx@{current_env}"])
+    subprocess.check_output(["systemctl", "disable", f"pretalx@{current_env}"])
+
+    config["current"] = next_venv
+    config["version"] = version
+    save_config(config=config)
+
+
+def main():
+    if len(sys.argv) == 1:
+        print_help()
+        sys.exit(-1)
+
+    commands = {
+        "status": status,
+        "run": run,
+        "update": update,
+    }
+
+    command = sys.argv[1]
+    args = sys.argv[2:]
+
+    if command not in commands:
+        print_help()
+        sys.exit(-1)
+
+    commands[command](args=args)
+
+
+if __name__ == "__main__":
+    main()
