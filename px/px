@@ -1,6 +1,7 @@
 #!/bin/env python3
 import json
 import os
+import subprocess
 import sys
 
 
@@ -30,6 +31,20 @@ def get_config():
             "venvs": ["green", "blue"],
             "current": "green",
             "version": None,
+            "plugins": [
+                {
+                    "name": "pretalx-com",
+                    "repository": "git@github.com:rixx/pretalx-com.git",
+                },
+                {
+                    "name": "pretalx-downstream",
+                    "repository": "git@github.com:pretalx/pretalx-downstream.git",
+                },
+                {
+                    "name": "pretalx-media-ccc-de",
+                    "repository": "git@github.com:pretalx/pretalx-media-ccc-de.git",
+                },
+            ],
         }
         save_config(config=config)
     return config
@@ -54,7 +69,7 @@ def run(*, args, env=None, config=None):
         raise Exception("Can't determine venv to run command in.")
     user = config["user"]
     venv = config["current"]
-    path = f"/home/{user}/{venv}/bin/python"
+    path = f"/var/lib/{user}/{venv}/bin/python"
     output = subprocess.check_output(
         ["sudo", "-i", "-u", user, path, "-m", "pretalx", *args]
     )
@@ -72,7 +87,12 @@ def update(*, args):
     user = config["user"]
     current_venv = config["current"]
     next_venv = [venv for venv in config["venvs"] if venv != current_venv][0]
-    path = f"/home/{user}/{venv}/bin/pip"
+    path = f"/var/lib/{user}/{next_venv}/bin/pip"
+    print("Updating plugins …")
+    for plugin in config.get("plugins", []):
+        plugin_path = "/var/lib/{user}/plugins/{plugin['name']}"
+        subprocess.check_output(["git", "pull",], cwd=plugin_path)
+
     print("Installing new version …")
     output = subprocess.check_output(
         [
@@ -84,35 +104,82 @@ def update(*, args):
             "install",
             "-U",
             f"git+git://github.com/pretalx/pretalx.git@{version}#egg=pretalx&subdirectory=src",
+            "django_redis",
+            "gunicorn",
+            "redis",
+            "psycopg2-binary",
         ]
     )
     print(output)
     print("Migrating …")
-    run(args=["migrate"], env=next_env, config=config)
+    run(args=["migrate"], env=next_venv, config=config)
     print("Rebuilding static files …")
-    run(args=["rebuild"], env=next_env, config=config)
+    run(args=["rebuild"], env=next_venv, config=config)
     print("Regenerating CSS …")
-    run(args=["regenerate_css"], env=next_env, config=config)
+    run(args=["regenerate_css"], env=next_venv, config=config)
     print("Stopping old celery worker …")
-    subprocess.check_output(["systemctl", "stop", f"pretalx-worker@{current_env}"])
-    subprocess.check_output(["systemctl", "disable", f"pretalx-worker@{current_env}"])
+    subprocess.check_output(["systemctl", "stop", f"pretalx-worker@{current_venv}"])
+    subprocess.check_output(["systemctl", "disable", f"pretalx-worker@{current_venv}"])
     print("Starting new celery worker …")
-    subprocess.check_output(["systemctl", "start", f"pretalx-worker@{next_env}"])
-    subprocess.check_output(["systemctl", "enable", f"pretalx-worker@{next_env}"])
+    subprocess.check_output(["systemctl", "start", f"pretalx-worker@{next_venv}"])
+    subprocess.check_output(["systemctl", "enable", f"pretalx-worker@{next_venv}"])
     print("Starting new pretalx process …")
-    subprocess.check_output(["systemctl", "start", f"pretalx@{next_env}"])
-    subprocess.check_output(["systemctl", "enable", f"pretalx@{next_env}"])
+    subprocess.check_output(["systemctl", "start", f"pretalx@{next_venv}.service"])
+    subprocess.check_output(["systemctl", "start", f"pretalx@{next_venv}.socket"])
+    subprocess.check_output(["systemctl", "enable", f"pretalx@{next_venv}.service"])
+    subprocess.check_output(["systemctl", "enable", f"pretalx@{next_venv}.socket"])
     print("Changing nginx config …")
-    subprocess.check_output(["sed", "-i", f"s/{current_env}/{next_env}/g", NGINX])
+    subprocess.check_output(["sed", "-i", f"s/{current_venv}/{next_venv}/g", NGINX])
     print("Reloading nginx …")
     subprocess.check_output(["systemctl", "reload", "openresty"])
     print("Stopping old pretalx process …")
-    subprocess.check_output(["systemctl", "stop", f"pretalx@{current_env}"])
-    subprocess.check_output(["systemctl", "disable", f"pretalx@{current_env}"])
+    subprocess.check_output(["systemctl", "stop", f"pretalx@{current_venv}.service"])
+    subprocess.check_output(["systemctl", "stop", f"pretalx@{current_venv}.socket"])
+    subprocess.check_output(["systemctl", "disable", f"pretalx@{current_venv}.service"])
+    subprocess.check_output(["systemctl", "disable", f"pretalx@{current_venv}.socket"])
 
     config["current"] = next_venv
     config["version"] = version
     save_config(config=config)
+
+
+def init(*, args):
+    config = get_config()
+    user = config["user"]
+    print("Installing plugins …")
+    for plugin in config.get("plugins", []):
+        plugin_path = "/var/lib/{user}/plugins/{plugin['name']}"
+        subprocess.check_output(
+            ["git", "clone", plugin["repo"], plugin_path,]
+        )
+    for venv in config["venvs"]:
+        # install and activate plugins
+        path = f"/var/lib/{user}/{venv}/bin/python"
+        for plugin in config.get("plugins", []):
+            plugin_path = "/var/lib/{user}/plugins/{plugin['name']}"
+            subprocess.check_output(
+                ["sudo", "-i", "-u", user, path, "setup.py", "develop",],
+                cwd=plugin_path,
+            )
+        path = f"/var/lib/{user}/{venv}/bin/pip"
+        version = "master"
+        # run install
+        subprocess.check_output(
+            [
+                "sudo",
+                "-i",
+                "-u",
+                user,
+                path,
+                "install",
+                "-U",
+                f"git+git://github.com/pretalx/pretalx.git@{version}#egg=pretalx&subdirectory=src",
+                "django_redis",
+                "gunicorn",
+                "redis",
+                "psycopg2-binary",
+            ]
+        )
 
 
 def main():
@@ -124,6 +191,7 @@ def main():
         "status": status,
         "run": run,
         "update": update,
+        "init": init,
     }
 
     command = sys.argv[1]
