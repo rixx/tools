@@ -92,7 +92,7 @@ def update(*, args):
     path = f"/var/lib/{user}/{next_venv}/bin/pip"
     print("Updating plugins …")
     for plugin in config.get("plugins", []):
-        plugin_path = "/var/lib/{user}/plugins/{plugin['name']}"
+        plugin_path = f"/var/lib/{user}/plugins/{plugin['name']}"
         subprocess.check_output(["git", "pull",], cwd=plugin_path)
 
     print("Installing new version …")
@@ -146,7 +146,7 @@ def init(*, args):
     user = config["user"]
     print("Installing plugins …")
     for plugin in config.get("plugins", []):
-        plugin_path = "/var/lib/{user}/plugins/{plugin['name']}"
+        plugin_path = f"/var/lib/{user}/plugins/{plugin['name']}"
         subprocess.check_output(
             ["git", "clone", plugin["repository"], plugin_path,]
         )
@@ -154,7 +154,7 @@ def init(*, args):
         # install and activate plugins
         path = f"/var/lib/{user}/{venv}/bin/python"
         for plugin in config.get("plugins", []):
-            plugin_path = "/var/lib/{user}/plugins/{plugin['name']}"
+            plugin_path = f"/var/lib/{user}/plugins/{plugin['name']}"
             subprocess.check_output(
                 [path, "setup.py", "develop",],
                 cwd=plugin_path,
