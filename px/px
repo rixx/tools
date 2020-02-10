@@ -148,7 +148,7 @@ def init(*, args):
     for plugin in config.get("plugins", []):
         plugin_path = "/var/lib/{user}/plugins/{plugin['name']}"
         subprocess.check_output(
-            ["git", "clone", plugin["repo"], plugin_path,]
+            ["git", "clone", plugin["repository"], plugin_path,]
         )
     for venv in config["venvs"]:
         # install and activate plugins
