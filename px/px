@@ -59,7 +59,7 @@ def save_config(*, config):
 
 def status(*, args):
     config = get_config()
-    for key, value in config.items:
+    for key, value in config.items():
         print(f"{key}: {value}")
 
 
