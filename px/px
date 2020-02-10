@@ -116,25 +116,23 @@ def update(*, args):
     print("Regenerating CSS …")
     run(args=["regenerate_css"], env=next_venv, config=config)
     print("Stopping old celery worker …")
-    subprocess.check_output(["systemctl", "stop", f"pretalx-worker@{current_venv}"])
-    subprocess.check_output(["systemctl", "disable", f"pretalx-worker@{current_venv}"])
+    subprocess.check_output(["sudo", "systemctl", "stop", f"pretalx-worker@{current_venv}.service"])
+    subprocess.check_output(["sudo", "systemctl", "disable", f"pretalx-worker@{current_venv}.service"])
     print("Starting new celery worker …")
-    subprocess.check_output(["systemctl", "start", f"pretalx-worker@{next_venv}"])
-    subprocess.check_output(["systemctl", "enable", f"pretalx-worker@{next_venv}"])
+    subprocess.check_output(["sudo", "systemctl", "start", f"pretalx-worker@{next_venv}.service"])
+    subprocess.check_output(["sudo", "systemctl", "enable", f"pretalx-worker@{next_venv}.service"])
     print("Starting new pretalx process …")
-    subprocess.check_output(["systemctl", "start", f"pretalx@{next_venv}.service"])
-    subprocess.check_output(["systemctl", "start", f"pretalx@{next_venv}.socket"])
-    subprocess.check_output(["systemctl", "enable", f"pretalx@{next_venv}.service"])
-    subprocess.check_output(["systemctl", "enable", f"pretalx@{next_venv}.socket"])
+    subprocess.check_output(["sudo", "systemctl", "start", f"pretalx@{next_venv}.service"])
+    subprocess.check_output(["sudo", "systemctl", "start", f"pretalx@{next_venv}.socket"])
+    subprocess.check_output(["sudo", "systemctl", "enable", f"pretalx@{next_venv}.socket"])
     print("Changing nginx config …")
-    subprocess.check_output(["sed", "-i", f"s/{current_venv}/{next_venv}/g", NGINX])
+    subprocess.check_output(["sudo", "sed", "-i", f'"s/{current_venv}/{next_venv}/g"', NGINX])
     print("Reloading nginx …")
-    subprocess.check_output(["systemctl", "reload", "openresty"])
+    subprocess.check_output(["sudo", "systemctl", "reload", "openresty"])
     print("Stopping old pretalx process …")
-    subprocess.check_output(["systemctl", "stop", f"pretalx@{current_venv}.service"])
-    subprocess.check_output(["systemctl", "stop", f"pretalx@{current_venv}.socket"])
-    subprocess.check_output(["systemctl", "disable", f"pretalx@{current_venv}.service"])
-    subprocess.check_output(["systemctl", "disable", f"pretalx@{current_venv}.socket"])
+    subprocess.check_output(["sudo", "systemctl", "stop", f"pretalx@{current_venv}.service"])
+    subprocess.check_output(["sudo", "systemctl", "stop", f"pretalx@{current_venv}.socket"])
+    subprocess.check_output(["sudo", "systemctl", "disable", f"pretalx@{current_venv}.socket"])
 
     config["current"] = next_venv
     config["version"] = version
@@ -167,11 +165,11 @@ def init(*, args):
                 path,
                 "install",
                 "-U",
-                f"git+git://github.com/pretalx/pretalx.git@{version}#egg=pretalx&subdirectory=src",
-                "django_redis",
                 "gunicorn",
-                "redis",
                 "psycopg2-binary",
+                "django_redis",
+                "redis",
+                f"git+git://github.com/pretalx/pretalx.git@{version}#egg=pretalx&subdirectory=src",
             ]
         )
 
