@@ -26,6 +26,8 @@ def get_config():
         with open(CONFIG, "r") as f:
             config = json.load(f)
     except Exception:
+        config = None
+    if not config:
         config = {
             "user": "pretalx",
             "venvs": ["green", "blue"],
