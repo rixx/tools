@@ -126,7 +126,7 @@ def update(*, args):
     subprocess.check_output(["sudo", "systemctl", "start", f"pretalx@{next_venv}.socket"])
     subprocess.check_output(["sudo", "systemctl", "enable", f"pretalx@{next_venv}.socket"])
     print("Changing nginx config …")
-    subprocess.check_output(["sudo", "sed", "-i", f'"s/{current_venv}/{next_venv}/g"', NGINX])
+    subprocess.check_output(["sudo", "sed", "-i", f's/{current_venv}/{next_venv}/g', NGINX])
     print("Reloading nginx …")
     subprocess.check_output(["sudo", "systemctl", "reload", "openresty"])
     print("Stopping old pretalx process …")
