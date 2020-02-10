@@ -73,7 +73,7 @@ def run(*, args, env=None, config=None):
     venv = config["current"]
     path = f"/var/lib/{user}/{venv}/bin/python"
     output = subprocess.check_output(
-        ["sudo", "-i", "-u", user, path, "-m", "pretalx", *args]
+        [path, "-m", "pretalx", *args]
     )
     print(output)
 
@@ -98,10 +98,6 @@ def update(*, args):
     print("Installing new version …")
     output = subprocess.check_output(
         [
-            "sudo",
-            "-i",
-            "-u",
-            user,
             path,
             "install",
             "-U",
@@ -160,7 +156,7 @@ def init(*, args):
         for plugin in config.get("plugins", []):
             plugin_path = "/var/lib/{user}/plugins/{plugin['name']}"
             subprocess.check_output(
-                ["sudo", "-i", "-u", user, path, "setup.py", "develop",],
+                [path, "setup.py", "develop",],
                 cwd=plugin_path,
             )
         path = f"/var/lib/{user}/{venv}/bin/pip"
@@ -168,10 +164,6 @@ def init(*, args):
         # run install
         subprocess.check_output(
             [
-                "sudo",
-                "-i",
-                "-u",
-                user,
                 path,
                 "install",
                 "-U",
