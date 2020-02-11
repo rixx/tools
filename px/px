@@ -141,6 +141,9 @@ def update(*, args):
         ["sudo", "systemctl", "start", f"pretalx@{next_venv}.socket"], check=True
     )
     subprocess.run(
+        ["sudo", "systemctl", "enable", f"pretalx@{next_venv}.service"], check=True
+    )
+    subprocess.run(
         ["sudo", "systemctl", "enable", f"pretalx@{next_venv}.socket"], check=True
     )
     print("Changing nginx config …")
@@ -158,6 +161,9 @@ def update(*, args):
     )
     subprocess.run(
         ["sudo", "systemctl", "disable", f"pretalx@{current_venv}.socket"], check=True
+    )
+    subprocess.run(
+        ["sudo", "systemctl", "disable", f"pretalx@{current_venv}.service"], check=True
     )
 
     config["current"] = next_venv
