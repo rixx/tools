@@ -12,7 +12,9 @@ import click
 @click.option('--template', type=click.File("r"), help='Template to use. Should contain the string "REPLACEME"')
 def send(source, address, number, subject, template):
     """Simple program that greets NAME for a total of COUNT times."""
-    selection = "\n".join(random.sample(list(source), number))
+    l = [element.strip() for element in list(source)]
+    l = [element for element in l if element and not element.startswith("#")]
+    selection = "\n".join(random.sample(l, number)
     if template:
         template = "\n".join(template)
     else:
