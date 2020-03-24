@@ -27,8 +27,7 @@ def send(source, address, number, subject, template):
     message["Subject"] = subject
     message["From"] = address
     message["To"] = address
-    print(template)
     smtp = smtplib.SMTP("localhost")
-    smtp.sendmail(message)
+    smtp.send_message(message)
 
 send()
