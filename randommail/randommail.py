@@ -17,7 +17,7 @@ def send(source, address, number, subject, template):
     l = [element for element in l if element and not element.startswith("#")]
     selection = "\n".join(random.sample(l, number))
     if template:
-        template = "\n".join(template)
+        template = "".join(template)
     else:
         template = "REPLACEME"
     template = template.replace("REPLACEME", selection)
