@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import random
 import smtplib
 from email.message import EmailMessage
