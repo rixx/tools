@@ -2,7 +2,7 @@ import base64
 import html
 import subprocess
 
-fname = "/home/rixx/tmp/downloads/original message before SpamAssassin.txt")
+fname = "/home/rixx/tmp/downloads/original message before SpamAssassin.txt"
 with open(fname) as f:
     content = f.read().split("\n")
 
