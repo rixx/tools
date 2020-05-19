@@ -2,6 +2,8 @@ import glob
 import subprocess
 from pathlib import Path
 
+from tqdm import tqdm
+
 
 DEBUG = True
 BPM_RANGES = ((85, 90), (165, 180))
@@ -76,7 +78,7 @@ class Song:
 
 def get_songs(debug=False):
     songs = []
-    for path in Path.home().glob(".stepmania*/Songs/**/**/*.sm"):
+    for path in tqdm(list(Path.home().glob(".stepmania*/Songs/**/**/*.sm"))):
         try:
             songs.append(Song(path))
         except UnicodeDecodeError:
@@ -111,7 +113,6 @@ def print_songs(songs):
 
 
 def main():
-    total_duration = 0
     songs = get_songs()
     filtered_songs = [
         song
