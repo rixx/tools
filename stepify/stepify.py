@@ -5,7 +5,6 @@ import sys
 import spotipy
 import spotipy.util as util
 import sqlite_utils
-from tqdm import tqdm
 
 with open("auth.json") as fp:
     data = json.load(fp)
@@ -41,7 +40,13 @@ def get_tracks(sp, playlist):
 
 
 def get_songs(db):
-    return [song for song in db["songs"].rows]
+    return [
+        song
+        for song in db["songs"].rows
+        if song["bpm"]
+        and (165 <= song["bpm"] <= 180)
+        and song.get("spotify") not in ["ignore", "no"]
+    ]
 
 
 def update_songs(db, songs):
@@ -49,7 +54,9 @@ def update_songs(db, songs):
 
 
 def main():
-    token = util.prompt_for_user_token(username, scope="playlist-modify-public")
+    token = util.prompt_for_user_token(
+        username, scope="user-modify-playback-state playlist-modify-public"
+    )
     if not token:
         print("Can't get token for", username)
         return
@@ -69,12 +76,67 @@ def main():
     known_songs = total_songs - len(songs)
     updates = []
 
-    for song in tqdm(songs):
+    for song in songs:
         if song["title"].lower() in track_titles:
-            song["spotify"] = True
+            song["spotify"] = "yes"
             updates.append(song)
-            print(f"We know that one: {song['title']}")
+            new_songs += 1
+        else:
+            parts = song["artist"].split(" ")
+            parts.sort(key=lambda x: len(x))
+            artist = parts[-1]
+            query = f"{song['title']} artist:{artist}"
+            results = sp.search(q=query)["tracks"]
+            found_tracks = results["items"]
 
+            if results["total"] == 0:
+                print(
+                    f"Found no matches for Track '{song['title']}' by {song['artist']}"
+                )
+                song["spotify"] = "no"
+                updates.append(song)
+                continue
+
+            print(
+                f"Found {results['total']} matches for Track '{song['title']}' by {song['artist']}"
+            )
+            for index, track in enumerate(found_tracks):
+                print(f"{index + 1}. {track['name']} by {track['artists'][0]['name']}")
+            action = ""
+            while not action or action[0] not in ["p", "a", "s", "n", "q", "i"]:
+                action = input(
+                    "What do you want to do? (p)lay, (a)dd, (s)uccess, (n)ext, (i)gnore, (q)uit: "
+                )
+                try:
+                    if action and action[0] == "p":
+                        selected = int(action[1:]) - 1 if len(action) > 1 else 0
+                        sp.start_playback(uris=[found_tracks[selected]["uri"]])
+                        action = None
+                except Exception as e:
+                    print(e)
+                    action = None
+                    pass
+            if action == "q":
+                break
+            if action == "n":
+                continue
+            if action == "i":
+                song["spotify"] = "ignore"
+                updates.append(song)
+            elif action == "s":
+                song["spotify"] = "yes"
+                updates.append(song)
+                new_songs += 1
+            elif action == "a":
+                selected = int(action[1:]) - 1 if len(action) > 1 else 0
+                sp.user_playlist_add_tracks(
+                    username, playlist["id"], [found_tracks[selected]["uri"]]
+                )
+                song["spotify"] = "yes"
+                updates.append(song)
+                new_songs += 1
+
+    print("Saving changes ...")
     update_songs(db, updates)
 
     print(f"Total stepmania songs:   {total_songs}")
