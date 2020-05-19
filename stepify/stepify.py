@@ -4,6 +4,7 @@ from pathlib import Path
 
 
 DEBUG = True
+BPM_RANGES = ((85, 90), (165, 180))
 
 
 class SongException(Exception):
@@ -112,13 +113,12 @@ def print_songs(songs):
 def main():
     total_duration = 0
     songs = get_songs()
-    print_songs(
-        [
-            song
-            for song in songs
-            if song.bpm and ((165 <= song.bpm <= 180) or (85 <= song.bpm <= 90))
-        ]
-    )
+    filtered_songs = [
+        song
+        for song in songs
+        if song.bpm and any(bpms[0] < song.bpm < bpms[1] for bpms in BPM_RANGES)
+    ]
+    print_songs(filtered_songs)
 
 
 if __name__ == "__main__":
