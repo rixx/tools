@@ -61,7 +61,7 @@ def send_notification(notification):
         "user": config["pushover"]["user"],
         "title": limit_length(f"{ticket['subject']} ({name})", 250),
         "message": limit_length(ticket["body"], 1024),
-        "url": config["zammad"]["url"] + f'/#ticket/zoom/{ticket_id}',
+        "url": config["zammad"]["url"] + f"/#ticket/zoom/{ticket_id}",
         "url_title": "Go to ticket",
         "sound": "none",
     }
