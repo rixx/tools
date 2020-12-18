@@ -1,14 +1,10 @@
-import csv
+import itertools
 import shutil
 import sys
-import itertools
-from io import StringIO
-from tkinter import *
-from tkinter import ttk
-from tkinter import font
-from PIL import Image, ImageTk
 from pathlib import Path
+from tkinter import BOTTOM, GROOVE, LEFT, Canvas, Frame, Tk, X, font, ttk
 
+from PIL import Image, ImageTk
 
 root = Tk()
 w, h = root.winfo_screenwidth(), root.winfo_screenheight()
@@ -27,10 +23,11 @@ if Path("seen_images.txt").exists():
 seen_images = list(set(seen_images))
 
 all_extensions = {"jpg", "JPG", "png", "PNG", "jpeg", "JPEG"}
-get_images = lambda x: path.glob(f"**/*.{x}")
 all_images = list(
-    f.absolute() for f in
-    itertools.chain.from_iterable(list(get_images(extension)) for extension in all_extensions)
+    f.absolute()
+    for f in itertools.chain.from_iterable(
+        list(path.glob(f"**/*.{extension}")) for extension in all_extensions
+    )
     if f.absolute() not in seen_images
 )
 total_images = len(all_images)
@@ -56,7 +53,9 @@ def go_to_next_image():
             current_image = next(all_images)
             current_image = current_image.absolute()
     except StopIteration:
-        print("We are done here! You selected {total_saved} out of {total_images} images.")
+        print(
+            "We are done here! You selected {total_saved} out of {total_images} images."
+        )
         sys.exit()
 
     current_index += 1
@@ -70,6 +69,7 @@ def go_to_next_image():
     image_element = ImageTk.PhotoImage(image)
     canvas.itemconfig(image_id, image=image_element)
 
+
 def move_image():
     global total_saved
     total_saved += 1
@@ -81,12 +81,15 @@ def move_image():
     destloc = destdir / "_".join(basis[1:])
     shutil.copy(current_image, destloc)
 
+
 def skip_image(*args, **kwargs):
     go_to_next_image()
+
 
 def use_image(*args, **kwargs):
     move_image()
     go_to_next_image()
+
 
 frame = Frame(root, relief=GROOVE, width=50, height=100, bd=1)
 frame.place(x=10, y=10)
