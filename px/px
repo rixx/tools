@@ -116,7 +116,7 @@ def update(*, args):
     print("Migrating …")
     run(args=["migrate"], env=next_venv, config=config)
     print("Rebuilding static files …")
-    run(args=["rebuild"], env=next_venv, config=config)
+    run(args=["rebuild", "--silent"], env=next_venv, config=config)
     print("Regenerating CSS …")
     run(args=["regenerate_css"], env=next_venv, config=config)
     print("Stopping old celery worker …")
