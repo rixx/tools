@@ -118,7 +118,7 @@ def update(*, args):
     print("Rebuilding static files …")
     run(args=["rebuild", "--silent"], env=next_venv, config=config)
     print("Regenerating CSS …")
-    run(args=["regenerate_css"], env=next_venv, config=config)
+    run(args=["regenerate_css", "--silent"], env=next_venv, config=config)
     print("Stopping old celery worker …")
     subprocess.run(
         ["sudo", "systemctl", "stop", f"pretalx-worker@{current_venv}.service"],
