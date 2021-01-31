@@ -50,6 +50,7 @@ def send_notification(notification):
         return
     ticket_data = zammad_get(f"/api/v1/tickets/{ticket_id}")
     customer = zammad_get(f'/api/v1/users/{ticket_data["customer_id"]}')
+    subject = ticket_data["title"]
     name = customer.get("firstname", " ") + " " + customer.get("lastname", "")
     name = name.strip()
     if name:
@@ -59,7 +60,7 @@ def send_notification(notification):
     payload = {
         "token": config["pushover"]["app"],
         "user": config["pushover"]["user"],
-        "title": limit_length(f"{ticket['subject']} ({name})", 250),
+        "title": limit_length(f"{subject} ({name})", 250),
         "message": limit_length(ticket["body"], 1024),
         "url": config["zammad"]["url"] + f"/#ticket/zoom/{ticket_id}",
         "url_title": "Go to ticket",
