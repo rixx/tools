@@ -53,10 +53,8 @@ def send_notification(notification):
     subject = ticket_data["title"]
     name = customer.get("firstname", " ") + " " + customer.get("lastname", "")
     name = name.strip()
-    if name:
-        name += f'<{customer["email"]}>'
-    else:
-        name = customer["email"]
+    if not name:
+        name = f'<{customer["email"]}>'
     payload = {
         "token": config["pushover"]["app"],
         "user": config["pushover"]["user"],
