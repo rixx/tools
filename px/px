@@ -20,6 +20,15 @@ Usage:
     print(message)
 
 
+def subprocess_run(commands, **kwargs):
+    command = " ".join(commands)
+    location = ""
+    if "cwd" in kwargs:
+        location = f" in {kwargs['cwd']}"
+    print(f"Running command{location}:\n    {command}")
+    return subprocess.run(commands, **kwargs)
+
+
 def get_config():
     try:
         with open(CONFIG, "r") as f:
@@ -71,7 +80,7 @@ def run(*, args, env=None, config=None, chdir=True):
     user = config["user"]
     venv = config["current"]
     path = f"/var/lib/{user}/{venv}/bin/python"
-    subprocess.run(
+    subprocess_run(
         [path, "-m", "pretalx", *args],
         check=True,
         cwd=f"/var/lib/{user}/" if chdir else None,
@@ -94,10 +103,23 @@ def update(*, args):
     print("Updating plugins …")
     for plugin in config.get("plugins", []):
         plugin_path = f"{cwd}/plugins/{plugin['name']}"
-        subprocess.run(["git", "pull",], cwd=plugin_path, check=True)
+        subprocess_run(["git", "pull",], cwd=plugin_path, check=True)
+
+    # Apparently, updates from git are currently not guaranteed? I'm not sure what broke, but this fixes it.
+    print("Uninstalling old version …")
+    subprocess_run(
+        [
+            path,
+            "uninstall",
+            "-y",
+            "pretalx",
+        ],
+        check=True,
+        cwd=cwd,
+    )
 
     print("Installing new version …")
-    subprocess.run(
+    subprocess_run(
         [
             path,
             "install",
@@ -121,73 +143,73 @@ def update(*, args):
     print("Regenerating CSS …")
     run(args=["regenerate_css", "--silent"], env=next_venv, config=config)
     print("Stopping old celery worker …")
-    subprocess.run(
+    subprocess_run(
         ["sudo", "systemctl", "stop", f"pretalx-worker@{current_venv}.service"],
         check=True,
         cwd=cwd,
     )
-    subprocess.run(
+    subprocess_run(
         ["sudo", "systemctl", "disable", f"pretalx-worker@{current_venv}.service"],
         check=True,
         cwd=cwd,
     )
     print("Starting new celery worker …")
-    subprocess.run(
+    subprocess_run(
         ["sudo", "systemctl", "start", f"pretalx-worker@{next_venv}.service"],
         check=True,
         cwd=cwd,
     )
-    subprocess.run(
+    subprocess_run(
         ["sudo", "systemctl", "enable", f"pretalx-worker@{next_venv}.service"],
         check=True,
         cwd=cwd,
     )
     print("Starting new pretalx process …")
-    subprocess.run(
+    subprocess_run(
         ["sudo", "systemctl", "start", f"pretalx@{next_venv}.service"],
         check=True,
         cwd=cwd,
     )
-    subprocess.run(
+    subprocess_run(
         ["sudo", "systemctl", "start", f"pretalx@{next_venv}.socket"],
         check=True,
         cwd=cwd,
     )
-    subprocess.run(
+    subprocess_run(
         ["sudo", "systemctl", "enable", f"pretalx@{next_venv}.service"],
         check=True,
         cwd=cwd,
     )
-    subprocess.run(
+    subprocess_run(
         ["sudo", "systemctl", "enable", f"pretalx@{next_venv}.socket"],
         check=True,
         cwd=cwd,
     )
     print("Changing nginx config …")
-    subprocess.run(
+    subprocess_run(
         ["sudo", "sed", "-i", f"s/{current_venv}/{next_venv}/g", NGINX],
         check=True,
         cwd=cwd,
     )
     print("Reloading nginx …")
-    subprocess.run(["sudo", "systemctl", "reload", "openresty"], check=True, cwd=cwd)
+    subprocess_run(["sudo", "systemctl", "reload", "openresty"], check=True, cwd=cwd)
     print("Stopping old pretalx process …")
-    subprocess.run(
+    subprocess_run(
         ["sudo", "systemctl", "stop", f"pretalx@{current_venv}.service"],
         check=True,
         cwd=cwd,
     )
-    subprocess.run(
+    subprocess_run(
         ["sudo", "systemctl", "stop", f"pretalx@{current_venv}.socket"],
         check=True,
         cwd=cwd,
     )
-    subprocess.run(
+    subprocess_run(
         ["sudo", "systemctl", "disable", f"pretalx@{current_venv}.socket"],
         check=True,
         cwd=cwd,
     )
-    subprocess.run(
+    subprocess_run(
         ["sudo", "systemctl", "disable", f"pretalx@{current_venv}.service"],
         check=True,
         cwd=cwd,
@@ -205,7 +227,7 @@ def init(*, args):
     cwd = f"/var/lib/{user}"
     for plugin in config.get("plugins", []):
         plugin_path = f"{cwd}/plugins/{plugin['name']}"
-        subprocess.run(
+        subprocess_run(
             ["git", "clone", plugin["repository"], plugin_path,], check=True, cwd=cwd
         )
     for venv in config["venvs"]:
@@ -213,13 +235,13 @@ def init(*, args):
         path = f"{cwd}/{venv}/bin/python"
         for plugin in config.get("plugins", []):
             plugin_path = f"{cwd}/plugins/{plugin['name']}"
-            subprocess.run(
+            subprocess_run(
                 [path, "setup.py", "develop",], cwd=plugin_path, check=True,
             )
         path = f"/var/lib/{user}/{venv}/bin/pip"
         version = "master"
         # run install
-        subprocess.run(
+        subprocess_run(
             [
                 path,
                 "install",
