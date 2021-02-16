@@ -229,7 +229,7 @@ def init(*, args):
                 "redis",
                 "django_extensions",
                 "ipython",
-                f"git+https://github.com/pretalx/pretalx.git@{version}#egg=pretalx&subdirectory=src",
+                f"git+https://github.com/pretalx/pretalx.git@{version}#subdirectory=src",
             ],
             check=True,
             cwd=cwd,
