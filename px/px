@@ -72,15 +72,14 @@ def status(*, args):
         print(f"{key}: {value}")
 
 
-def run(*, args, env=None, config=None, chdir=True):
+def pretalx_run(*, args, env=None, config=None, chdir=True):
     config = config or get_config()
     if not env:
         env = config.get("current")
     if not env:
         raise Exception("Can't determine venv to run command in.")
     user = config["user"]
-    venv = config["current"]
-    path = f"/var/lib/{user}/{venv}/bin/python"
+    path = f"/var/lib/{user}/{env}/bin/python"
     subprocess_run(
         [path, "-m", "pretalx", *args],
         check=True,
@@ -152,11 +151,11 @@ def update(*, args):
         ]
     )
     print("Migrating …")
-    run(args=["migrate"], env=next_venv, config=config)
+    pretalx_run(args=["migrate"], env=next_venv, config=config)
     print("Rebuilding static files …")
-    run(args=["rebuild", "--silent"], env=next_venv, config=config)
+    pretalx_run(args=["rebuild", "--silent"], env=next_venv, config=config)
     print("Regenerating CSS …")
-    run(args=["regenerate_css", "--silent"], env=next_venv, config=config)
+    pretalx_run(args=["regenerate_css", "--silent"], env=next_venv, config=config)
     print("Stopping old celery worker …")
     subprocess_run(
         ["sudo", "systemctl", "stop", f"pretalx-worker@{current_venv}.service"],
