@@ -7,6 +7,7 @@ import sys
 CONFIG = "/etc/px.conf"
 NGINX = "/etc/nginx/sites/pretalx.conf"
 SOCKET = "/run/gunicorn/pretalx_{}"
+PYTHON_VERSION = "3.8"
 
 
 def print_help():
@@ -142,6 +143,13 @@ def update(*, args):
         ],
         check=True,
         cwd=cwd,
+    )
+    subprocess_run(
+        [
+            "cp",
+            f"{cwd}/override_settings.py",
+            f"{cwd}/{next_env}/lib/python{PYTHON_VERSION}/site-packages/pretalx/"
+        ]
     )
     print("Migrating …")
     run(args=["migrate"], env=next_venv, config=config)
