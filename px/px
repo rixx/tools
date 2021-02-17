@@ -148,7 +148,7 @@ def update(*, args):
         [
             "cp",
             f"{cwd}/override_settings.py",
-            f"{cwd}/{next_env}/lib/python{PYTHON_VERSION}/site-packages/pretalx/"
+            f"{cwd}/{next_venv}/lib/python{PYTHON_VERSION}/site-packages/pretalx/"
         ]
     )
     print("Migrating …")
