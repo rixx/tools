@@ -4,6 +4,7 @@ import json
 from contextlib import suppress
 
 import requests
+from bs4 import BeautifulSoup
 
 config = configparser.ConfigParser()
 config.read("notify.cfg")
@@ -55,11 +56,17 @@ def send_notification(notification):
     name = name.strip()
     if not name:
         name = f'<{customer["email"]}>'
+    body = ticket["body"]
+    if "<" in body:
+        try:
+            body = BeautifulSoup(body, "html.parser").text.strip()
+        except Exception:
+            pass
     payload = {
         "token": config["pushover"]["app"],
         "user": config["pushover"]["user"],
         "title": limit_length(f"{subject} ({name})", 250),
-        "message": limit_length(ticket["body"], 1024),
+        "message": limit_length(body, 1024),
         "url": config["zammad"]["url"] + f"/#ticket/zoom/{ticket_id}",
         "url_title": "Go to ticket",
         "sound": "none",
