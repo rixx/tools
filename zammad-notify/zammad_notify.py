@@ -10,6 +10,12 @@ config = configparser.ConfigParser()
 config.read("notify.cfg")
 
 
+BLOCKED = [
+    "есть",
+    "Spam detection software, running on the system",
+]
+
+
 def get_seen_ids():
     with suppress(FileNotFoundError):
         with open("./seen_ids") as seen_file:
@@ -57,6 +63,9 @@ def send_notification(notification):
     if not name:
         name = f'<{customer["email"]}>'
     body = ticket["body"]
+    for blocked in BLOCKED:
+        if blocked in body:
+            return
     if "<" in body:
         try:
             body = BeautifulSoup(body, "html.parser").text.strip()
