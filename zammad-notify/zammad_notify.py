@@ -17,7 +17,9 @@ BODY_BLOCKED = [  # heh.
 SUBJECT_BLOCKED = [
     "undelivered mail returned to sender",
     "automatic reply",
+    "auto reply",
     "away from work",
+    "out of office",
 ]
 
 
