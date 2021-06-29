@@ -10,9 +10,14 @@ config = configparser.ConfigParser()
 config.read("notify.cfg")
 
 
-BLOCKED = [
+BODY_BLOCKED = [  # heh.
     "есть",
     "Spam detection software, running on the system",
+]
+SUBJECT_BLOCKED = [
+    "undelivered mail returned to sender",
+    "automatic reply",
+    "away from work",
 ]
 
 
@@ -58,12 +63,15 @@ def send_notification(notification):
     ticket_data = zammad_get(f"/api/v1/tickets/{ticket_id}")
     customer = zammad_get(f'/api/v1/users/{ticket_data["customer_id"]}')
     subject = ticket_data["title"]
+    for blocked in SUBJECT_BLOCKED:
+        if blocked in subject.lower():
+            return
     name = customer.get("firstname", " ") + " " + customer.get("lastname", "")
     name = name.strip()
     if not name:
         name = f'<{customer["email"]}>'
     body = ticket["body"]
-    for blocked in BLOCKED:
+    for blocked in BODY_BLOCKED:
         if blocked in body:
             return
     if "<" in body:
