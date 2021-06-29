@@ -14,6 +14,7 @@ BODY_BLOCKED = [  # heh.
     "есть",
     "Spam detection software, running on the system",
 ]
+# Most of these are now filtered in Zammad, but better safe than sorry
 SUBJECT_BLOCKED = [
     "undelivered mail returned to sender",
     "automatic reply",
