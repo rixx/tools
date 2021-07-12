@@ -17,6 +17,7 @@ BODY_BLOCKED = [  # heh.
 # Most of these are now filtered in Zammad, but better safe than sorry
 SUBJECT_BLOCKED = [
     "undelivered mail returned to sender",
+    "delivery status notification",
     "automatic reply",
     "auto reply",
     "away from work",
