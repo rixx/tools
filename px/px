@@ -294,7 +294,7 @@ def main():
 
     commands = {
         "status": status,
-        "run": run,
+        "run": pretalx_run,
         "update": update,
         "init": init,
     }
