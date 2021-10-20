@@ -16,7 +16,7 @@ def print_help():
 Usage:
   px status  Show information on the currently running pretalx
   px run     Run a command with the current pretalx, e.g. px run shell_scoped --override
-  px update  Update to a given git ref, or master, if none was given.
+  px update  Update to a given git ref, or main, if none was given.
 """
     print(message)
 
@@ -91,7 +91,7 @@ def update(*, args):
     if len(args) > 1:
         raise Exception("update requires a single argument")
     if len(args) == 0:
-        version = "master"
+        version = "main"
     else:
         version = args[0]
     config = get_config()
@@ -266,7 +266,7 @@ def init(*, args):
                 check=True,
             )
         path = f"/var/lib/{user}/{venv}/bin/pip"
-        version = "master"
+        version = "main"
         # run install
         subprocess_run(
             [
