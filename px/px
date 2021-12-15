@@ -2,6 +2,7 @@
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 
 CONFIG = "/etc/px.conf"
@@ -17,6 +18,8 @@ Usage:
   px status  Show information on the currently running pretalx
   px run     Run a command with the current pretalx, e.g. px run shell_scoped --override
   px update  Update to a given git ref, or main, if none was given.
+  px init    Install all configured plugins
+  px init --system  Install all configured plugins and pretalx itself
 """
     print(message)
 
@@ -241,50 +244,52 @@ def init(*, args):
     cwd = f"/var/lib/{user}"
     for plugin in config.get("plugins", []):
         plugin_path = f"{cwd}/plugins/{plugin['name']}"
-        subprocess_run(
-            [
-                "git",
-                "clone",
-                plugin["repository"],
-                plugin_path,
-            ],
-            check=True,
-            cwd=cwd,
-        )
-    for venv in config["venvs"]:
-        # install and activate plugins
-        path = f"{cwd}/{venv}/bin/python"
-        for plugin in config.get("plugins", []):
-            plugin_path = f"{cwd}/plugins/{plugin['name']}"
+        if not Path(plugin_path).exists():
+            subprocess_run(
+                [
+                    "git",
+                    "clone",
+                    plugin["repository"],
+                    plugin_path,
+                ],
+                check=True,
+                cwd=cwd,
+            )
+        for venv in config["venvs"]:
+            # install and activate plugins
+            path = f"{cwd}/{venv}/bin/pip"
             subprocess_run(
                 [
                     path,
-                    "setup.py",
-                    "develop",
+                    "install",
+                    "-e",
+                    ".",
                 ],
                 cwd=plugin_path,
                 check=True,
             )
-        path = f"/var/lib/{user}/{venv}/bin/pip"
-        version = "main"
-        # run install
-        subprocess_run(
-            [
-                path,
-                "install",
-                "-U",
-                "gunicorn",
-                "wheel",
-                "psycopg2-binary",
-                "django_redis",
-                "redis",
-                "django_extensions",
-                "ipython",
-                f"git+https://github.com/pretalx/pretalx.git@{version}#subdirectory=src",
-            ],
-            check=True,
-            cwd=cwd,
-        )
+    if "--system" in args:
+        for venv in config["venvs"]:
+            path = f"/var/lib/{user}/{venv}/bin/pip"
+            version = "main"
+            # run install
+            subprocess_run(
+                [
+                    path,
+                    "install",
+                    "-U",
+                    "gunicorn",
+                    "wheel",
+                    "psycopg2-binary",
+                    "django_redis",
+                    "redis",
+                    "django_extensions",
+                    "ipython",
+                    f"git+https://github.com/pretalx/pretalx.git@{version}#subdirectory=src",
+                ],
+                check=True,
+                cwd=cwd,
+            )
 
 
 def main():
