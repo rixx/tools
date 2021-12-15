@@ -255,19 +255,19 @@ def init(*, args):
                 check=True,
                 cwd=cwd,
             )
-        for venv in config["venvs"]:
-            # install and activate plugins
-            path = f"{cwd}/{venv}/bin/pip"
-            subprocess_run(
-                [
-                    path,
-                    "install",
-                    "-e",
-                    ".",
-                ],
-                cwd=plugin_path,
-                check=True,
-            )
+            for venv in config["venvs"]:
+                # install and activate plugins
+                path = f"{cwd}/{venv}/bin/pip"
+                subprocess_run(
+                    [
+                        path,
+                        "install",
+                        "-e",
+                        ".",
+                    ],
+                    cwd=plugin_path,
+                    check=True,
+                )
     if "--system" in args:
         for venv in config["venvs"]:
             path = f"/var/lib/{user}/{venv}/bin/pip"
