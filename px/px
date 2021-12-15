@@ -18,8 +18,10 @@ Usage:
   px status  Show information on the currently running pretalx
   px run     Run a command with the current pretalx, e.g. px run shell_scoped --override
   px update  Update to a given git ref, or main, if none was given.
+     --no-plugins  Skips plugin updates
+     --skip-rebuild  Skips the rebuild step
   px init    Install all configured plugins
-  px init --system  Install all configured plugins and pretalx itself
+     --system  Install all configured plugins and pretalx itself
 """
     print(message)
 
@@ -103,17 +105,20 @@ def update(*, args):
     next_venv = [venv for venv in config["venvs"] if venv != current_venv][0]
     cwd = f"/var/lib/{user}"
     path = f"{cwd}/{next_venv}/bin/pip"
-    print("Updating plugins …")
-    for plugin in config.get("plugins", []):
-        plugin_path = f"{cwd}/plugins/{plugin['name']}"
-        subprocess_run(
-            [
-                "git",
-                "pull",
-            ],
-            cwd=plugin_path,
-            check=True,
-        )
+    if "--no-plugins" not in args:
+        print("Updating plugins …")
+        for plugin in config.get("plugins", []):
+            plugin_path = f"{cwd}/plugins/{plugin['name']}"
+            subprocess_run(
+                [
+                    "git",
+                    "pull",
+                ],
+                cwd=plugin_path,
+                check=True,
+            )
+    else:
+        print("Skipping plugin updates")
 
     # Apparently, updates from git are currently not guaranteed? I'm not sure what broke, but this fixes it.
     print("Uninstalling old version …")
@@ -155,8 +160,11 @@ def update(*, args):
     )
     print("Migrating …")
     pretalx_run(args=["migrate"], env=next_venv, config=config)
-    print("Rebuilding static files …")
-    pretalx_run(args=["rebuild", "--silent"], env=next_venv, config=config)
+    if "--skip-rebuild" not in args:
+        print("Rebuilding static files …")
+        pretalx_run(args=["rebuild", "--silent"], env=next_venv, config=config)
+    else:
+        print("Skipping static file rebuild …")
     print("Regenerating CSS …")
     pretalx_run(args=["regenerate_css", "--silent"], env=next_venv, config=config)
     print("Stopping old celery worker …")
