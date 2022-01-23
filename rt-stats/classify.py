@@ -42,5 +42,5 @@ def auth(auth):
     get_tracker(auth_data)
     open(auth, "w").write(json.dumps(auth_data, indent=4) + "\n")
     click.echo()
-    click.echo("Your authentication credentials have been saved to {}.".format(auth))
+    click.echo(f"Your authentication credentials have been saved to {auth}.")
     click.echo()

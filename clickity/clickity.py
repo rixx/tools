@@ -76,7 +76,7 @@ def clickity():
         bucket = old_bucket = None
         while total_downloaded < TOTAL:
             if current_day > len(BUCKETS):
-                print("Time is over! Downloaded {}".format(total_downloaded))
+                print(f"Time is over! Downloaded {total_downloaded}")
                 sys.exit()
             _now = datetime.now()
             current_day = abs((_now - START_DATE).days)
@@ -105,18 +105,18 @@ def clickity():
                 BUCKETS[current_day][bucket] -= 1
                 time.sleep(random.randint(0, 60))
             elif bucket in BUCKETS[current_day]:
-                print("Finished bucket {} of day {}".format(bucket, current_day + 1))
+                print(f"Finished bucket {bucket} of day {current_day + 1}")
                 sl = (
                     (_now + timedelta(hours=1)).replace(minute=0, second=0) - _now
                 ).seconds
                 time.sleep(sl)
-                print("Sleeping {} minutes until next bucket.".format(sl))
+                print(f"Sleeping {sl} minutes until next bucket.")
             else:
                 print("Sleeping until next bucket.")
-        print("Finished! Downloaded {}".format(total_downloaded))
+        print(f"Finished! Downloaded {total_downloaded}")
         sys.exit()
     except KeyboardInterrupt:
-        print("Downloaded {}".format(total_downloaded))
+        print(f"Downloaded {total_downloaded}")
         sys.exit()
 
 

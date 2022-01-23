@@ -29,7 +29,7 @@ def get_seen_ids():
     with suppress(FileNotFoundError):
         with open("./seen_ids") as seen_file:
             content = seen_file.read()
-        return set(int(element) for element in content.strip().split("\n") if element)
+        return {int(element) for element in content.strip().split("\n") if element}
     return set()
 
 
