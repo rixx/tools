@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Speedrun Race Timer Helper</title>
+    <style>
+      #template { display: none }
+      main { display: flex; flex-wrap: wrap; }
+      main > table { border: 1px solid; padding: 16px; margin: 16px; }
+    </style>
+  </head>
+  <body>
+    <button id="new-race" onclick="newRace()">New race!</button>
+    <main>
+    </main>
+    <table id="template">
+      <thead>
+        <tr>
+          <th>Split</th>
+          <th contenteditable>R1 (editme)</th>
+          <th contenteditable>R2 (editme)</th>
+          <th>Diff</th>
+          <th>Diffdiff</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Mound</td>
+          <td><input type="text" /></td>
+          <td><input type="text" /></td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>Greenpath</td>
+          <td><input type="text" /></td>
+          <td><input type="text" /></td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>Dash</td>
+          <td><input type="text" /></td>
+          <td><input type="text" /></td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>Claw</td>
+          <td><input type="text" /></td>
+          <td><input type="text" /></td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>Sly</td>
+          <td><input type="text" /></td>
+          <td><input type="text" /></td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>Cdash</td>
+          <td><input type="text" /></td>
+          <td><input type="text" /></td>
+          <td></td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+    <script>
+      const template = document.querySelector("#template")
+      const main = document.querySelector("main")
+
+      const toSeconds = (s) => {
+        if (!s) return null
+        const parts = s.split(":").reverse();
+        if (parts.length == 0 || s.length == 0) return null
+
+        let seconds = 0
+        const indices = [...Array(parts.length).keys()]
+
+        indices.forEach(index => {
+            const factor = 60 ** index
+            seconds += parseInt(parts[index], 10) * factor
+        })
+        return seconds
+      }
+      const toHuman = (sec_num) => {
+        const hours   = Math.floor(sec_num / 3600);
+        const diff = new Date(1000 * sec_num).toISOString()
+        if (hours) return diff.substr(11, 8)
+        return diff.substr(14, 5)
+      }
+      const updateRow = (row) => {
+          const tds = [...row.querySelectorAll("td")]
+          const secondsLeft = toSeconds(tds[1].querySelector("input").value)
+          const secondsRight = toSeconds(tds[2].querySelector("input").value)
+          if (!secondsLeft || !secondsRight) return
+          const currentDiff = Math.abs(secondsLeft - secondsRight)
+          tds[3].textContent = toHuman(currentDiff)
+
+          const previousRow = row.previousElementSibling
+          const nextRow = row.nextElementSibling
+
+          // if previous row and previous row.td[3] => input diff
+          if (previousRow) {
+            const previousTds = [...previousRow.querySelectorAll("td")]
+            const previousDiff = toSeconds(previousTds[3].textContent) || 0
+            if (previousDiff) {
+              const previousLeft = toSeconds(previousTds[1].querySelector("input").value)
+              const previousRight = toSeconds(previousTds[2].querySelector("input").value)
+              const leadChange = ((secondsLeft - secondsRight) > 0) != ((previousLeft - previousRight) > 0)
+
+              const diffDiff = leadChange ? previousDiff + currentDiff : currentDiff - previousDiff
+              if (diffDiff == 0) {
+                tds[4].textContent = "±0"
+              } else {
+                tds[4].textContent = (diffDiff > 0 ? "+" : "-") + toHuman(Math.abs(diffDiff))
+              }
+            }
+          }
+
+          // if next row and next_row.td[3] => updateRow
+          if (nextRow) {
+            const nextTds = [...nextRow.querySelectorAll("td")]
+            if (nextTds[3]) {
+              updateRow(nextRow)
+            }
+          }
+      }
+
+      const updateInputNumbers = (e) => {
+          updateRow(e.target.parentElement.parentElement)
+      }
+      const copy = (text) => {
+        const copyText = document.querySelector("#input");
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        
+        // Avoid scrolling to bottom
+        textArea.style.top = "0";
+        textArea.style.left = "0";
+        textArea.style.position = "fixed";
+
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy')
+        document.body.removeChild(textArea);
+      }
+
+      const copyMaybe = (e) => {
+        if (e.key === 'Enter') {
+          updateInputNumbers(e)
+
+          const row = e.target.parentElement.parentElement
+          const tds = [...row.querySelectorAll("td")]
+          let copyText = tds[0].textContent + ": " + tds[1].querySelector("input").value + " │ " + tds[2].querySelector("input").value + " ║ Δ " + tds[3].textContent
+          if (tds[4].textContent) copyText += ", " + tds[4].textContent + " to last split"
+          console.log(copyText)
+          copy(copyText)
+          
+          e.target.focus()
+        }
+      }
+
+      const newRace = () => {
+          const newNode = template.cloneNode(true)
+          newNode.id = null
+          main.insertBefore(newNode, main.firstChild)
+          newNode.querySelectorAll("input").forEach(e => e.addEventListener("blur", updateInputNumbers))
+          newNode.querySelectorAll("input").forEach(e => e.addEventListener("keypress", copyMaybe))
+      }
+    </script>
+  </body>
+</html>
