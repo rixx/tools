@@ -21,7 +21,10 @@
           <th contenteditable>R1 (editme)</th>
           <th contenteditable>R2 (editme)</th>
           <th>Diff</th>
-          <th>Diffdiff</th>
+          <th>
+            Diffdiff 
+            <button id="remove-splits">X</button>
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -178,12 +181,16 @@
         }
       }
 
+      const removeNode = (e) => {
+          e.target.parentElement.parentElement.parentElement.parentElement.remove()
+      }
       const newRace = () => {
           const newNode = template.cloneNode(true)
           newNode.id = null
           main.insertBefore(newNode, main.firstChild)
           newNode.querySelectorAll("input").forEach(e => e.addEventListener("blur", updateInputNumbers))
           newNode.querySelectorAll("input").forEach(e => e.addEventListener("keypress", copyMaybe))
+          newNode.querySelector("button#remove-splits").addEventListener("click", removeNode)
       }
     </script>
   </body>
