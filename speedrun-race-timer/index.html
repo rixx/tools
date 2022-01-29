@@ -119,6 +119,9 @@
               const previousLeft = toSeconds(previousTds[1].querySelector("input").value)
               const previousRight = toSeconds(previousTds[2].querySelector("input").value)
               const leadChange = ((secondsLeft - secondsRight) > 0) != ((previousLeft - previousRight) > 0)
+              if (leadChange) {
+                tds[3].setAttribute("lead-change", "yes")
+              }
 
               const diffDiff = leadChange ? previousDiff + currentDiff : currentDiff - previousDiff
               if (diffDiff == 0) {
@@ -164,8 +167,10 @@
 
           const row = e.target.parentElement.parentElement
           const tds = [...row.querySelectorAll("td")]
+
           let copyText = tds[0].textContent + ": " + tds[1].querySelector("input").value + " │ " + tds[2].querySelector("input").value + " ║ Δ " + tds[3].textContent
           if (tds[4].textContent) copyText += ", " + tds[4].textContent + " to last split"
+          if (tds[3].getAttribute("lead-change")) copyText += ", lead change"
           console.log(copyText)
           copy(copyText)
           
