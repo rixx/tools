@@ -40,7 +40,7 @@ def cli():
     "--remove-success", type=bool, default=False, help="Only keep error cases."
 )
 def check(source, remove_success):
-    """ Run a check on the existing domains. """
+    """Run a check on the existing domains."""
     domains = get_domains(source)
     click.echo(f"Found {len(domains)} domains.")
     check_domains(domains, source)
@@ -59,7 +59,7 @@ def check(source, remove_success):
     help="Path to load domains from and to save them after processing.",
 )
 def report(source):
-    """ Report the current results. """
+    """Report the current results."""
     domains = get_domains(source)
 
     def percent(number, total=len(domains)):
