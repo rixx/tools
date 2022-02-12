@@ -9,7 +9,16 @@ How to use:
 - set PAGES to the last page number
 - set BOOK to the book identifier (or whatever you want in your file name)
 
-Run. Once downloads start failing (after 50-100 pages, usually), you'll have to copy a new curl command. The script won't re-download existing images.
+Run.
+
+Once downloads start failing (after 50-100 pages, usually), you'll have to copy a new curl command. The script won't re-download existing images.
+
+Once you are done, you'll want to combine the images. Several options:
+- just zip them and rename the archive to .cbz
+- for not too many pages, use convert directly: convert *.jpg -quality 100 book.pdf
+- if that gets killed, you'll have to convert in two steps:
+    - ls *.jpg | xargs -I% convert % %.pdf
+    - pdftk *.pdf cat output book.pdf && rm *.jpg.pdf
 """
 import pathlib
 import subprocess
