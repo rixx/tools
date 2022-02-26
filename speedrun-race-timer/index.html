@@ -33,6 +33,7 @@
     <script>
       const template = document.querySelector("#template")
       const main = document.querySelector("main")
+      const runnerCount = template.querySelectorAll("th[contenteditable]").length
 
       const toSeconds = (s) => {
         if (!s) return null
@@ -54,7 +55,10 @@
         if (hours) return diff.substr(11, 8)
         return diff.substr(14, 5)
       }
+
       const updateRow = (row) => {
+          if (runnerCount > 2) return  // no diffs for more than two runners
+
           const tds = [...row.querySelectorAll("td")]
           const secondsLeft = toSeconds(tds[1].querySelector("input").value)
           const secondsRight = toSeconds(tds[2].querySelector("input").value)
@@ -121,10 +125,19 @@
 
           const row = e.target.parentElement.parentElement
           const tds = [...row.querySelectorAll("td")]
+          let copyText = tds[0].textContent + ": "
 
-          let copyText = tds[0].textContent + ": " + tds[1].querySelector("input").value + " │ " + tds[2].querySelector("input").value + " ║ Δ " + tds[3].textContent
-          if (tds[4].textContent) copyText += ", " + tds[4].textContent + " to last split"
-          if (tds[3].getAttribute("lead-change")) copyText += ", lead change"
+          for (let i = 1; i <= runnerCount; i++) {
+            copyText += tds[i].querySelector("input").value
+            if (i != runnerCount) copyText += " │ "
+          }
+
+          if (runnerCount == 2) {
+            copyText += " ║ Δ " + tds[3].textContent
+            if (tds[4].textContent) copyText += ", " + tds[4].textContent + " to last split"
+            if (tds[3].getAttribute("lead-change")) copyText += ", lead change"
+          }
+
           console.log(copyText)
           copy(copyText)
           
