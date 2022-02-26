@@ -8,7 +8,9 @@ ALL_SKILLS = ["Mound", "Greenpath", "Dash", "Claw", "Blue Lake", "Gorgeous Husk"
 
 ANY = ["Mound", "Greenpath", "Dash", "Claw", "Blue Lake", "Watcher Room", "Lurien", "Lantern", "Cdash", "Monomon", "QG", "Beasts Den", "Herrah", "Enter THK"]
 
-SPLITS = TE_SCSBCP
+POP = ["Mound", "Greenpath", "Dash", "Blue Lake", "Elder Hu", "Claw", "Galien", "Xero", "Gorgeous Husk", "Lantern", "Cdash", "Shade Soul", "Dive", "Tyrant", "Basin", "BV", "LK", "Failed Champ", "Gorb", "No Eyes", "Enter White Palace", "Enter Path of Pain"]
+
+SPLITS = ALL_SKILLS
 RUNNERS = 2
 
 runner_lines = '          <td><input type="text" /></td>\n' * RUNNERS
