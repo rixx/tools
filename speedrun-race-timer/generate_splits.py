@@ -10,7 +10,10 @@ ANY = ["Mound", "Greenpath", "Dash", "Claw", "Blue Lake", "Watcher Room", "Lurie
 
 POP = ["Mound", "Greenpath", "Dash", "Blue Lake", "Elder Hu", "Claw", "Galien", "Xero", "Gorgeous Husk", "Lantern", "Cdash", "Shade Soul", "Dive", "Tyrant", "Basin", "BV", "LK", "Failed Champ", "Gorb", "No Eyes", "Enter White Palace", "Enter Path of Pain"]
 
-SPLITS = ALL_SKILLS
+ONE_07 = ["Fury", "Mound", "Greenpath", "Dash", "Claw", "City", "Dive", "Storerooms", "Cdash", "Ddark", "Soul Eater", "Shade Soul", "Tyrant", "Flukenest", "Dung Defender", "BV", "LK", "Failed Champ", "Cyclone", "Grimm Lantern", "Unn", "Storerooms Fragment", "Thorns", "Greenpath Fragment", "Wraiths", "No Eyes", "CG2", "Deep Focus", "King's Arena", "Hornet", "Shade Cloak", "Markoth", "Quick Slash", "TMG", "Bretta", "Mantis Lords", "Fungal Shard", "Monomon", "Love Key", "Marmu", "Herrah", "Galien", "Nosk", "Hive", "Hiveblood", "Collector", "Lurien", "Nail hut", "White Defender", "Sly", "Seer ascended", "Flower Quest", "Colo 1", "Colo 2", "Colo 3", "Nail hut", "White palace", "Void Heart", "NKG", "GPZ", "Enter Radiance",
+        ]
+
+SPLITS = ONE_07
 RUNNERS = 2
 
 runner_lines = '          <td><input type="text" /></td>\n' * RUNNERS
