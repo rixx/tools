@@ -139,6 +139,8 @@ def update(*, args):
             path,
             "install",
             "-U",
+            "--upgrade-strategy",
+            "eager",
             f"git+https://github.com/pretalx/pretalx.git@{version}#egg=pretalx&subdirectory=src",
             "django_redis",
             "gunicorn",
@@ -270,7 +272,9 @@ def init(*, args):
                     [
                         path,
                         "install",
-                        "-e",
+                        "--upgrade-strategy",
+                        "eager",
+                        "-Ue",
                         ".",
                     ],
                     cwd=plugin_path,
@@ -285,6 +289,8 @@ def init(*, args):
                 [
                     path,
                     "install",
+                    "--upgrade-strategy",
+                    "eager",
                     "-U",
                     "gunicorn",
                     "wheel",
