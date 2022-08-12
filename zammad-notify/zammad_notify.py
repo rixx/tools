@@ -83,6 +83,8 @@ def send_notification(notification):
             body = BeautifulSoup(body, "html.parser").text.strip()
         except Exception:
             pass
+    if not body:
+        return
     payload = {
         "token": config["pushover"]["app"],
         "user": config["pushover"]["user"],
