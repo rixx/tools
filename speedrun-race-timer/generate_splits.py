@@ -6,7 +6,7 @@ TE_SCSBCP = ["Mound", "Greenpath", "Dash", "Blue Lake", "Elder Hu", "Claw", "Gla
 
 ALL_SKILLS = ["Mound", "Greenpath", "Dash", "Claw", "Blue Lake", "Gorgeous Husk", "Dash Slash", "Shade Soul", "Dive", "King's", "Cdash", "Ddark", "Dnail", "Lurien", "Basin", "BV", "Hornet", "Cyclone", "Monomon", "Great Slash", "Wraiths", "Herrah", "Shade Cloak", "Enter THK"]
 
-ANY = ["Mound", "Greenpath", "Dash", "Claw", "Blue Lake", "Watcher Room", "Lurien", "Lantern", "Cdash", "Monomon", "QG", "Beasts Den", "Herrah", "Enter THK"]
+ANY = ["Mound", "Greenpath", "Dash quitout", "Claw quitout", "Blue Lake", "Watcher Room", "Lurien", "Lantern", "Cdash quitout", "Monomon", "QGA", "Beasts Den", "Herrah", "Enter THK"]
 
 POP = ["Mound", "Greenpath", "Dash", "Blue Lake", "Elder Hu", "Claw", "Galien", "Xero", "Gorgeous Husk", "Lantern", "Cdash", "Shade Soul", "Dive", "Tyrant", "Basin", "BV", "LK", "Failed Champ", "Gorb", "No Eyes", "Enter White Palace", "Enter Path of Pain"]
 
@@ -15,8 +15,8 @@ ONE_07 = ["Fury", "Mound", "Greenpath", "Dash", "Claw", "City", "Dive", "Storero
 
 AWR = ["Mound", "Greenpath", "Dash", "Blue Lake", "Mantis Claw", "RG Root", "Waterways Root", "City Root", "Cdash", "Cliffs Root", "Crossroads Root", "Mound Root", "Fungal Root", "Glade Root", "Gardens Root", "Greenpath Root", "Deepnest Root", "Hive Root"]
 
-SPLITS = AWR
-RUNNERS = 3
+SPLITS = ANY
+RUNNERS = 2
 
 runner_lines = '          <td><input type="text" /></td>\n' * RUNNERS
 runner_headers = '          <th contenteditable>R1 (editme)</th>' * RUNNERS
