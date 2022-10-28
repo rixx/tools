@@ -3,36 +3,90 @@
 ## Don't save IPs
 
 ```sql
-UPDATE users
-SET current_sign_in_ip=null, last_sign_in_ip=null;
+UPDATE
+  users
+SET
+  current_sign_in_ip = null,
+  last_sign_in_ip = null;
 
-UPDATE session_activations
-SET ip=null;
+UPDATE
+  session_activations
+SET
+  ip = null;
 ```
 
 ## Don't allow unlimited invites
 
 ```sql
-UPDATE invites
-SET expires_at='2021-03-25 0:00'
+UPDATE
+  invites
+SET
+  expires_at = '2021-03-25 0:00'
 WHERE
-    (max_uses is null and expires_at is null)
-    OR (uses < max_uses and max_uses > 10 and expires_at is null)
-    OR (uses < max_uses and max_uses > 10 and now() < expires_at)
-    OR (max_uses is null and now() < expires_at);
+  (max_uses is null AND expires_at is null)
+  OR (uses < max_uses AND max_uses > 10 AND expires_at is null)
+  OR (uses < max_uses AND max_uses > 10 AND now() < expires_at)
+  OR (max_uses is null AND now() < expires_at);
 ```
 
 ## Who invited a lot of users recently?
 
+We use this mostly to make sure that nobody is spamming invites somewhere – we already limit the reach of invites (see
+above), but we also want to be able to figure out fast when somebody is creating a huge load by inviting dozens or
+hundreds of users.
+
 ```sql
-SELECT a2.username, count(a1.username)
+SELECT
+  a2.username,
+  count(a1.username)
 FROM
-    users AS u1
-    JOIN accounts AS a1 ON a1.id = u1.account_id
-    JOIN invites ON u1.invite_id = invites.id
-    JOIN users AS u2 ON invites.user_id = u2.id
-    JOIN accounts AS a2 ON a2.id = u2.account_id
-WHERE u1.created_at BETWEEN NOW() - INTERVAL '24 HOURS' AND NOW()
-GROUP BY a2.username
-ORDER BY count(a1.username) desc;
+  users AS u1
+  JOIN accounts AS a1 ON a1.id = u1.account_id
+  JOIN invites ON u1.invite_id = invites.id
+  JOIN users AS u2 ON invites.user_id = u2.id
+  JOIN accounts AS a2 ON a2.id = u2.account_id
+WHERE
+  u1.created_at BETWEEN NOW() - INTERVAL '24 HOURS'
+  AND NOW()
+GROUP BY
+  a2.username
+ORDER BY
+  count(a1.username) desc;
+```
+
+## Show invites by a specific user
+
+```sql
+SELECT
+  invites.code,
+  invites.created_at,
+  invites.expires_at,
+  invites.max_uses,
+  invites.uses
+FROM
+  invites
+  JOIN users AS u1 ON invites.user_id = users.id
+  JOIN accounts ON users.account_id = accounts.id
+WHERE
+  accounts.username LIKE 'insert username here';
+```
+
+## Show users invited by a specific user
+
+Please note that we use this as a moderation tool and only when needed: When a troll joins the instance and we kick
+them, we need to know if the user inviting them has issued similar invites to other accounts, or if it was a one-off
+mistake. We don't regularly track invites otherwise (ain't nobody got time).
+
+```
+SELECT
+  a1.username,
+  u1.created_at
+FROM
+  accounts AS a1
+  JOIN users AS u1 ON u1.account_id = a1.id
+  JOIN invites ON u1.invite_id = invites.id
+  JOIN users AS u2 ON invites.user_id = u2.id
+  JOIN accounts AS a2 ON u2.account_id = a2.id
+WHERE
+  a2.username LIKE 'insert username here';
 ```
