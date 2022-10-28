@@ -29,6 +29,18 @@ WHERE
   OR (max_uses is null AND now() < expires_at);
 ```
 
+## How many users have joined recently?
+
+```sql
+SELECT
+  count(*)
+FROM
+  users
+WHERE
+  users.created_at BETWEEN NOW() - INTERVAL '24 HOURS'
+  and NOW();
+```
+
 ## Who invited a lot of users recently?
 
 We use this mostly to make sure that nobody is spamming invites somewhere – we already limit the reach of invites (see
@@ -46,7 +58,7 @@ FROM
   JOIN users AS u2 ON invites.user_id = u2.id
   JOIN accounts AS a2 ON a2.id = u2.account_id
 WHERE
-  u1.created_at BETWEEN NOW() - INTERVAL '24 HOURS'
+  users.created_at BETWEEN NOW() - INTERVAL '24 HOURS'
   AND NOW()
 GROUP BY
   a2.username
