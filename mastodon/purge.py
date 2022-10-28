@@ -50,7 +50,7 @@ def write_last_id(num):
 
 
 def display_status(status, text_width=70):
-    status_line_top = f"[{status['visibility']}] {'REPLY' if status['in_reply_to_id'] else ''} · {status['created_at'].strftime('%Y-%m-%d %H:%M')}"
+    status_line_top = f"[{status['visibility']}] {'REPLY' if status['in_reply_to_id'] else ''}{' REBLOG' if status.get('reblog') else ''} · {status['created_at'].strftime('%Y-%m-%d %H:%M')}"
     status_line_bottom = f"{status['reblogs_count']} boosts · {status['favourites_count']} favs · {status['replies_count']} replies"
     buffer_width = text_width + 2
     print_lines = [status_line_top, ""]
@@ -58,7 +58,7 @@ def display_status(status, text_width=70):
     if status["spoiler_text"]:
         print_lines += [f"{status['spoiler_text']} [SHOW LESS]", ""]
 
-    lines = status["content"].split("</p><p>")
+    lines = (status["content"] or status.get("reblog", {}).get("content") or "").split("</p><p>")
     for line in lines:
         text = bs4.BeautifulSoup(line, "html.parser").text
         print_lines += textwrap.wrap(text, text_width)
