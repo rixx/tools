@@ -6,7 +6,7 @@ TE_SCSBCP = ["Mound", "Greenpath", "Dash", "Blue Lake", "Elder Hu", "Claw", "Gla
 
 ALL_SKILLS = ["Mound", "Greenpath", "Dash", "Claw", "Blue Lake", "Gorgeous Husk", "Dash Slash", "Shade Soul", "Dive", "King's", "Cdash", "Ddark", "Dnail", "Lurien", "Basin", "BV", "Hornet", "Cyclone", "Monomon", "Great Slash", "Wraiths", "Herrah", "Shade Cloak", "Enter THK"]
 
-ANY = ["Mound", "Greenpath", "Dash quitout", "Claw quitout", "Blue Lake", "Watcher Room", "Lurien", "Lantern", "Cdash quitout", "Monomon", "QGA", "Beasts Den", "Herrah", "Enter THK"]
+ANY = ["Mound", "Greenpath", "Dash quitout", "Claw quitout", "Blue Lake", "Watcher room", "Lurien room", "Sly room", "Cdash quitout", "Monomon", "QGA", "Beasts Den", "Herrah", "Enter THK"]
 
 POP = ["Mound", "Greenpath", "Dash", "Blue Lake", "Elder Hu", "Claw", "Galien", "Xero", "Gorgeous Husk", "Lantern", "Cdash", "Shade Soul", "Dive", "Tyrant", "Basin", "BV", "LK", "Failed Champ", "Gorb", "No Eyes", "Enter White Palace", "Enter Path of Pain"]
 
