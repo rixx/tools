@@ -32,7 +32,7 @@ result = "\n".join(
     ]
 )
 
-with open("index.html", "r") as fp:
+with open("template.html", "r") as fp:
     content = fp.read()
 
 content = content.replace("#PLACEHOLDER", result)
