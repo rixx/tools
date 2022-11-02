@@ -63,7 +63,7 @@ FROM
   JOIN users AS u2 ON invites.user_id = u2.id
   JOIN accounts AS a2 ON a2.id = u2.account_id
 WHERE
-  users.created_at BETWEEN NOW() - INTERVAL '24 HOURS'
+  u1.created_at BETWEEN NOW() - INTERVAL '7 days'
   AND NOW()
 GROUP BY
   a2.username
@@ -82,8 +82,8 @@ SELECT
   invites.uses
 FROM
   invites
-  JOIN users AS u1 ON invites.user_id = users.id
-  JOIN accounts ON users.account_id = accounts.id
+  JOIN users AS u1 ON invites.user_id = u1.id
+  JOIN accounts ON u1.account_id = accounts.id
 WHERE
   accounts.username LIKE 'insert username here';
 ```
