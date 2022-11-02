@@ -33,12 +33,17 @@ WHERE
 
 ```sql
 SELECT
-  count(*)
+  DATE_TRUNC('day', "created_at") AS "date",
+  count("created_at") AS "registrations"
 FROM
   users
 WHERE
-  users.created_at BETWEEN NOW() - INTERVAL '24 HOURS'
-  and NOW();
+  users.created_at BETWEEN NOW() - INTERVAL '14 DAYS'
+  and NOW()
+GROUP BY
+  date
+ORDER BY
+  date;
 ```
 
 ## Who invited a lot of users recently?
