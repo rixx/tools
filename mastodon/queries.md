@@ -1,20 +1,5 @@
 # Queries you might need on your Mastodon server
 
-## Don't save IPs
-
-```sql
-UPDATE
-  users
-SET
-  current_sign_in_ip = null,
-  last_sign_in_ip = null;
-
-UPDATE
-  session_activations
-SET
-  ip = null;
-```
-
 ## Don't allow unlimited invites
 
 ```sql
