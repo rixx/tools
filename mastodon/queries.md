@@ -31,6 +31,27 @@ ORDER BY
   date;
 ```
 
+## Show local users with the most followers
+
+```sql
+SELECT
+  accounts.username,
+  accounts.created_at,
+  count(follows.id)
+FROM
+  accounts
+  JOIN follows on accounts.id = follows.target_account_id
+WHERE
+  accounts.domain IS NULL
+GROUP BY
+  accounts.username,
+  accounts.created_at
+ORDER BY
+  count DESC
+LIMIT
+  100;
+```
+
 ## Who invited a lot of users recently?
 
 We use this mostly to make sure that nobody is spamming invites somewhere – we already limit the reach of invites (see
