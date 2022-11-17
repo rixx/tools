@@ -18,7 +18,7 @@ WHERE
 
 ```sql
 SELECT
-  DATE_TRUNC('day', "created_at") AS "date",
+  created_at::date AS "date",
   count("created_at") AS "registrations"
 FROM
   users
