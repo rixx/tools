@@ -1,3 +1,4 @@
+import subprocess
 import textwrap
 
 import bs4
@@ -81,11 +82,9 @@ def display_status(status, text_width=70):
 
 
 def should_keep_status(status):
-    if status["reblogs_count"] > 10:
-        print(f"Keeping because it has {status['reblogs_count']} boosts")
-        return True
-    if status["favourites_count"] > 20:
-        print(f"Keeping because it has {status['favourites_count']} favs")
+    if status["reblogs_count"] > 10 or status["favourites_count"] > 20:
+        print(f"Keeping well-liked post")
+        subprocess.call(["xdg-open", f"https://chaos.social/web/@rixx/{status['id']}"])
         return True
     return inquirer.list_input(
         message="Keep status?",
