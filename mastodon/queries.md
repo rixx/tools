@@ -113,3 +113,40 @@ FROM
 WHERE
   a2.username LIKE 'insert username here';
 ```
+
+## Show OAuth applications by name
+
+Note: crossposter, bridge, feed2toot, wordpress
+
+```sql
+SELECT id, name FROM oauth_applications WHERE LOWER(name) LIKE '%Bridge%';
+```
+
+## Show public posts by OAuth application
+
+```sql
+SELECT
+  statuses.uri,
+  statuses.application_id
+FROM
+  statuses
+WHERE
+  statuses.application_id IN (
+    SELECT
+      id
+    FROM
+      oauth_applications
+    WHERE
+      LOWER(name) LIKE '%crossposter%'
+      or LOWER(name) LIKE '%wordpress%'
+      or LOWER(name) LIKE '%feed2toot%'
+      or LOWER(name) LIKE '%bridge%'
+  )
+  AND statuses.reblog_of_id IS null
+  AND statuses.in_reply_to_id IS null
+  AND statuses.visibility = 0
+ORDER BY
+  statuses.id DESC
+LIMIT
+  10;
+```
