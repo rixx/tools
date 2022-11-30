@@ -141,6 +141,7 @@ WHERE
       or LOWER(name) LIKE '%wordpress%'
       or LOWER(name) LIKE '%feed2toot%'
       or LOWER(name) LIKE '%bridge%'
+      or LOWER(name) LIKE '%share%'
   )
   AND statuses.reblog_of_id IS null
   AND statuses.in_reply_to_id IS null
