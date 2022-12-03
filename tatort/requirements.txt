@@ -1,0 +1,3 @@
+inquirer
+beautifulsoup4
+requests
