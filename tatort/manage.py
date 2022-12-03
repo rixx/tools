@@ -84,10 +84,14 @@ def get_episode(url):
     response = requests.get(url)
     content = bs4.BeautifulSoup(response.content.decode(), "html.parser")
     title = content.find("meta", {"property": "og:title"}).attrs["content"]
-    if "(" in title:
-        title = title[: title.find("(")]
-    if "Tatort:" in title:
-        title = title[title.find("Tatort:") + len("Tatort:") :]
+    trailing = ("(", "ARD", "Mediathek")
+    leading = ("Tatort:",)
+    for substr in trailing:
+        if substr in title:
+            title = title[: title.find(substr)]
+    for substr in leading:
+        if substr in title:
+            title = title[title.find(substr) + len(substr) :]
     slug = slugify(title.strip())
     matches = [
         e for e in EPISODES if e["slug"].startswith(slug) or slug.startswith(e["slug"])
@@ -98,10 +102,12 @@ def get_episode(url):
     if len(matches) == 1:
         result = matches[0]
     else:
+        options = [(f"{e['episode']} – {e['titel']}", e) for e in matches] + [
+            ("None, abort", None)
+        ]
         result = inquirer.list_input(
             "Which Episode is the right one?",
-            [(f"{e['episode']} – {e['title']}", e) for e in matches]
-            + [("None, abort", None)],
+            choices=options,
             carousel=True,
         )
     result["filename"] = slug
