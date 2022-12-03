@@ -63,7 +63,7 @@ def update_csv():
 
 
 def slugify(s):
-    return re.sub(r"[\W_]+", "-", s.lower())
+    return re.sub(r"[\W_]+", "-", s.lower()).strip("-")
 
 
 def load_csv():
