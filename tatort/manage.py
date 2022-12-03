@@ -118,7 +118,7 @@ def handle_download(url):
         print(f"Episode exists on disk: {found[0]}")
         return
     filename = f"{number}-{episode['filename']}.mp4"
-    print(f"Downloading episode {number}: {episode}['titel'] to {filename}")
+    print(f"Downloading episode {number}: {episode['titel']} to {filename}")
     subprocess.call(["youtube-dl", "-o", filename, url])
 
 
