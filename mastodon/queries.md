@@ -145,7 +145,7 @@ WHERE
   )
   AND statuses.reblog_of_id IS null
   AND statuses.in_reply_to_id IS null
-  AND statuses.visibility = 0
+  AND statuses.visibility <= 1
 ORDER BY
   statuses.id DESC
 LIMIT
