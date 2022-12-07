@@ -85,7 +85,7 @@ def get_episode(url):
     content = bs4.BeautifulSoup(response.content.decode(), "html.parser")
     title = content.find("meta", {"property": "og:title"}).attrs["content"]
     trailing = ("(", "ARD", "Mediathek")
-    leading = ("Tatort:",)
+    leading = ("Tatort:", "Wunschtatort")
     for substr in trailing:
         if substr in title:
             title = title[: title.find(substr)]
