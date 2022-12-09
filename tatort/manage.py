@@ -77,13 +77,7 @@ def load_csv():
     return data
 
 
-def get_episode(url):
-    global EPISODES
-    if not EPISODES:
-        EPISODES = load_csv()
-    response = requests.get(url)
-    content = bs4.BeautifulSoup(response.content.decode(), "html.parser")
-    title = content.find("meta", {"property": "og:title"}).attrs["content"]
+def normalize_title(title):
     trailing = ("(", "ARD", "Mediathek")
     leading = ("Tatort:", "Wunschtatort")
     for substr in trailing:
@@ -92,7 +86,9 @@ def get_episode(url):
     for substr in leading:
         if substr in title:
             title = title[title.find(substr) + len(substr) :]
-    slug = slugify(title.strip())
+    return title.strip()
+
+def get_episode_by_title(slug, title):
     matches = [
         e for e in EPISODES if e["slug"].startswith(slug) or slug.startswith(e["slug"])
     ]
@@ -114,8 +110,22 @@ def get_episode(url):
     return result
 
 
-def handle_download(url):
-    episode = get_episode(url)
+def get_episode(url, title=None):
+    global EPISODES
+    if not EPISODES:
+        EPISODES = load_csv()
+
+    if not title:
+        response = requests.get(url)
+        content = bs4.BeautifulSoup(response.content.decode(), "html.parser")
+        title = content.find("meta", {"property": "og:title"}).attrs["content"]
+    title = normalize_title(title)
+    slug = slugify(title)
+    return get_episode_by_title(slug, title)
+
+
+def handle_download(url, title=None):
+    episode = get_episode(url, title=title)
     if not episode:
         return
     number = f"{int(episode['episode']):04d}"
