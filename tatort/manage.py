@@ -14,6 +14,7 @@ import requests
 CWD = Path(os.getcwd())
 CSV_PATH = Path(__file__).parent / "episodes.csv"
 EPISODES = []
+KNOWN_BAD = ("die-professorin-tatort-ölfeld",)
 
 
 def serialize_episode(line):
@@ -79,7 +80,7 @@ def load_csv():
 
 
 def normalize_title(title):
-    trailing = ("(", "ARD", "Mediathek")
+    trailing = ("(", "ARD", "Mediathek", "–")  # not a -, a –
     leading = ("Tatort:", "Wunschtatort")
     for substr in trailing:
         if substr in title:
@@ -93,11 +94,13 @@ def normalize_title(title):
 def get_episode_by_title(title):
     title = normalize_title(title)
     slug = slugify(title)
+    if slug in KNOWN_BAD:
+        return
     matches = [
         e for e in EPISODES if e["slug"].startswith(slug) or slug.startswith(e["slug"])
     ]
     if not matches:
-        print("Episode not found! Can't assign file name, aborting")
+        print("Episode not found!")
         return
     if len(matches) == 1:
         result = matches[0]
