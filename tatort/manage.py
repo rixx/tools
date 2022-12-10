@@ -102,14 +102,18 @@ def get_episode_by_title(title):
     if len(matches) == 1:
         result = matches[0]
     else:
-        options = [(f"{e['episode']} – {e['titel']}", e) for e in matches] + [
-            ("None, abort", None)
-        ]
-        result = inquirer.list_input(
-            f"Which Episode is the right one? Title was {title}",
-            choices=options,
-            carousel=True,
-        )
+        exact_matches = [e for e in matches if e["slug"] == slug]
+        if len(exact_matches) == 1:
+            result = exact_matches[0]
+        else:
+            options = [(f"{e['episode']} – {e['titel']}", e) for e in matches] + [
+                ("None, abort", None)
+            ]
+            result = inquirer.list_input(
+                f"Which Episode is the right one? Title was {title}",
+                choices=options,
+                carousel=True,
+            )
     result["filename"] = slug
     return result
 
