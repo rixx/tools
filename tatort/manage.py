@@ -181,6 +181,7 @@ def bulk_download():
     url = "https://mediathekviewweb.de/api/query"
     headers = {"Content-Type": "text/plain"}
     blocklist = ("klare Sprache", "Audiodeskription")
+    seen = set()
     while True:
         response = requests.post(url, data=json.dumps(query), headers=headers)
         data = response.json()
@@ -193,6 +194,9 @@ def bulk_download():
             title = entry["title"]
             if any(b in title for b in blocklist):
                 continue
+            if title in seen:
+                continue
+            seen.update(title)
             episode = get_episode_by_title(title)
             if not episode:
                 print(
