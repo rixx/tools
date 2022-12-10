@@ -196,7 +196,7 @@ def bulk_download():
                 continue
             if title in seen:
                 continue
-            seen.update(title)
+            seen.add(title)
             episode = get_episode_by_title(title)
             if not episode:
                 print(
