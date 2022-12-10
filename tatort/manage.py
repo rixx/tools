@@ -1,4 +1,5 @@
 import csv
+import json
 import re
 import os
 import subprocess
@@ -88,7 +89,10 @@ def normalize_title(title):
             title = title[title.find(substr) + len(substr) :]
     return title.strip()
 
-def get_episode_by_title(slug, title):
+
+def get_episode_by_title(title):
+    title = normalize_title(title)
+    slug = slugify(title)
     matches = [
         e for e in EPISODES if e["slug"].startswith(slug) or slug.startswith(e["slug"])
     ]
@@ -102,7 +106,7 @@ def get_episode_by_title(slug, title):
             ("None, abort", None)
         ]
         result = inquirer.list_input(
-            "Which Episode is the right one?",
+            f"Which Episode is the right one? Title was {title}",
             choices=options,
             carousel=True,
         )
@@ -119,22 +123,28 @@ def get_episode(url, title=None):
         response = requests.get(url)
         content = bs4.BeautifulSoup(response.content.decode(), "html.parser")
         title = content.find("meta", {"property": "og:title"}).attrs["content"]
-    title = normalize_title(title)
-    slug = slugify(title)
-    return get_episode_by_title(slug, title)
+    return get_episode_by_title(title)
+
+
+def find_episode(number):
+    number = f"{int(number):04d}"
+    return list(CWD.glob(f"{number}-*"))
+
+
+def get_episode_filename(episode):
+    return f"{int(episode['episode']):04d}-{episode['filename']}.mp4"
 
 
 def handle_download(url, title=None):
     episode = get_episode(url, title=title)
     if not episode:
         return
-    number = f"{int(episode['episode']):04d}"
-    found = list(CWD.glob(f"{number}-*"))
+    found = find_episode(episode["episode"])
     if found:
         print(f"Episode exists on disk: {found[0]}")
         return
-    filename = f"{number}-{episode['filename']}.mp4"
-    print(f"Downloading episode {number}: {episode['titel']} to {filename}")
+    filename = get_episode_filename(episode)
+    print(f"Downloading episode {episode['number']}: {episode['titel']} to {filename}")
     subprocess.call(["youtube-dl", "-o", filename, url])
     subprocess.call(["notify-send", f"Finished downloading {episode['titel']}"])
 
@@ -154,12 +164,62 @@ def download():
             handle_download(url)
 
 
+def bulk_download():
+    print("Welcome to the Tatort bulk downloader.")
+    global EPISODES
+    EPISODES = load_csv()
+    size = 10
+    query = {
+        "queries": [{"fields": ["topic"], "query": "tatort"}],
+        "duration_min": 4800,
+        "sortBy": "timestamp",
+        "sortOrder": "desc",
+        "future": "false",
+        "offset": 0,
+        "size": 10,
+    }
+    url = "https://mediathekviewweb.de/api/query"
+    headers = {"Content-Type": "text/plain"}
+    blocklist = ("klare Sprache", "Audiodeskription")
+    while True:
+        response = requests.post(url, data=json.dumps(query), headers=headers)
+        data = response.json()
+        if data.get("err"):
+            raise Exception(data)
+        print(
+            f"Got results {query['offset'] + 1} – {query['offset'] + size} out of {data['result']['queryInfo']['totalResults']}"
+        )
+        for entry in data["result"]["results"]:
+            title = entry["title"]
+            if any(b in title for b in blocklist):
+                continue
+            episode = get_episode_by_title(title)
+            if not episode:
+                print(
+                    f"Unable to find episode for title {title}, with url {entry['url_video_hd']}"
+                )
+                continue
+            found = find_episode(episode["episode"])
+            if found:
+                print(f"Episode exists on disk: {found[0]}")
+                continue
+            filename = get_episode_filename(episode)
+            print(f"Downloading episode['episode'] – {episode['titel']} to {filename}")
+            subprocess.call(
+                ["/usr/bin/http", "-d", entry["url_video_hd"], "--output", filename]
+            )
+            subprocess.call(["notify-send", f"Finished downloading {episode['titel']}"])
+        query["offset"] += size
+
+
 if __name__ == "__main__":
     arg = sys.argv[1]
     if arg == "update_csv":
         update_csv()
     elif arg == "download":
         download()
+    elif arg == "bulk":
+        bulk_download()
     else:
         print(
             "Call script with either 'update_csv' or 'download' (with a link or without to enter interactive mode)"
