@@ -197,6 +197,8 @@ def bulk_download():
         print(
             f"Got results {query['offset'] + 1} – {query['offset'] + size} out of {data['result']['queryInfo']['totalResults']}"
         )
+        if not data["result"]["results"]:
+            break
         for entry in data["result"]["results"]:
             title = entry["title"]
             if any(b in title for b in blocklist):
