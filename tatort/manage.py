@@ -90,7 +90,7 @@ def normalize_title(title):
     for substr in leading:
         if substr in title:
             title = title[title.find(substr) + len(substr) :]
-    return title.strip().replace("ß", "ss")
+    return title.strip()
 
 
 def get_episode_by_title(title):
@@ -102,8 +102,20 @@ def get_episode_by_title(title):
         e for e in EPISODES if e["slug"].startswith(slug) or slug.startswith(e["slug"])
     ]
     if not matches:
-        print("Episode not found!")
-        return
+        if "ß" in slug:
+            slug = slug.replace("ß", "ss")
+        elif "ss" in slug:
+            slug = slug.replace("ss", "ß")
+        elif "chateau" in slug:
+            slug = slug.replace("chateau", "château")
+        matches = [
+            e
+            for e in EPISODES
+            if e["slug"].startswith(slug) or slug.startswith(e["slug"])
+        ]
+        if not matches:
+            print("Episode not found!")
+            return
     if len(matches) == 1:
         result = matches[0]
     else:
