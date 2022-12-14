@@ -88,7 +88,7 @@ def normalize_title(title):
     for substr in leading:
         if substr in title:
             title = title[title.find(substr) + len(substr) :]
-    return title.strip()
+    return title.strip().replace("ß", "ss")
 
 
 def get_episode_by_title(title):
