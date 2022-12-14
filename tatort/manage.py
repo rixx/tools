@@ -236,6 +236,8 @@ def bulk_download():
             for url in urls:
                 if not url:
                     continue
+                if Path(filename).exists():
+                    break
                 with suppress(Exception):
                     subprocess.call(["youtube-dl", "-o", filename, url])
                     if not "ERROR: Unable to download webpage" in result:
