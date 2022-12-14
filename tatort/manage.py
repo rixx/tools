@@ -191,11 +191,7 @@ def bulk_download():
     seen = set()
     while True:
         response = requests.post(url, data=json.dumps(query), headers=headers)
-        try:
-            data = response.json()
-        except Exception:
-            print(response.content)
-            breakpoint()
+        data = response.json()
         if data.get("err"):
             raise Exception(data)
         print(
