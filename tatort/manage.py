@@ -218,7 +218,7 @@ def bulk_download():
                 continue
             filename = get_episode_filename(episode)
             print(f"Downloading episode['episode'] – {episode['titel']} to {filename}")
-            url = entry["url_video_hd"]
+            url = entry["url_video_hd"] or entry["url_video"] or entry["url_video_low"]
             subprocess.call(["youtube-dl", "-o", filename, url])
             subprocess.call(["notify-send", f"Finished downloading {episode['titel']}"])
         query["offset"] += size
