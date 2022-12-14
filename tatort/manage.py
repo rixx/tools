@@ -81,7 +81,7 @@ def load_csv():
 
 def normalize_title(title):
     trailing = ("(", "ARD", "Mediathek", "–")  # not a -, a –
-    leading = ("Tatort:", "Wunschtatort")
+    leading = ("Tatort:", "Wunschtatort", "Tatort Konstanz:")
     for substr in trailing:
         if substr in title:
             title = title[: title.find(substr)]
