@@ -4,6 +4,7 @@ import re
 import os
 import subprocess
 import sys
+from contextlib import suppress
 from pathlib import Path
 
 import bs4
@@ -15,6 +16,7 @@ CWD = Path(os.getcwd())
 CSV_PATH = Path(__file__).parent / "episodes.csv"
 EPISODES = []
 KNOWN_BAD = ("die-professorin-tatort-ölfeld",)
+OFFSET = int(os.environ.get("OFFSET") or 0)
 
 
 def serialize_episode(line):
@@ -173,7 +175,7 @@ def download():
 
 def bulk_download():
     print("Welcome to the Tatort bulk downloader.")
-    global EPISODES
+    global EPISODES, OFFSET
     EPISODES = load_csv()
     size = 10
     query = {
@@ -182,7 +184,7 @@ def bulk_download():
         "sortBy": "timestamp",
         "sortOrder": "desc",
         "future": "false",
-        "offset": int(os.environ.get("OFFSET") or 0),
+        "offset": OFFSET,
         "size": 10,
     }
     url = "https://mediathekviewweb.de/api/query"
@@ -218,10 +220,23 @@ def bulk_download():
                 continue
             filename = get_episode_filename(episode)
             print(f"Downloading episode['episode'] – {episode['titel']} to {filename}")
-            url = entry["url_video_hd"] or entry["url_video"] or entry["url_video_low"]
-            subprocess.call(["youtube-dl", "-o", filename, url])
-            subprocess.call(["notify-send", f"Finished downloading {episode['titel']}"])
-        query["offset"] += size
+            urls = [entry["url_video_hd"], entry["url_video"], entry["url_video_low"]]
+            for url in urls:
+                if not url:
+                    continue
+                with suppress(Exception):
+                    subprocess.call(["youtube-dl", "-o", filename, url])
+                    if not "ERROR: Unable to download webpage" in result:
+                        result = subprocess.check_output(
+                            ["notify-send", f"Finished downloading {episode['titel']}"]
+                        )
+                        break
+            else:
+                print(
+                    f"None of the URLs for {episode['episode']} – {episode['titel']} work, skipping."
+                )
+        OFFSET += size
+        query["offset"] = OFFSET
 
 
 if __name__ == "__main__":
@@ -231,7 +246,13 @@ if __name__ == "__main__":
     elif arg == "download":
         download()
     elif arg == "bulk":
-        bulk_download()
+        while True:
+            try:
+                bulk_download()
+                break
+            except Exception:
+                print(f"Failure, increasing offset to {OFFSET + 1}")
+                OFFSET += 1
     else:
         print(
             "Call script with either 'update_csv' or 'download' (with a link or without to enter interactive mode)"
