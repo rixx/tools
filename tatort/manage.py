@@ -214,7 +214,7 @@ def bulk_download():
                 continue
             found = find_episode(episode["episode"])
             if found:
-                print(f"Episode exists on disk: {found[0]}")
+                # print(f"Episode exists on disk: {found[0]}")
                 continue
             filename = get_episode_filename(episode)
             print(f"Downloading episode['episode'] – {episode['titel']} to {filename}")
