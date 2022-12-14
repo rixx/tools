@@ -182,7 +182,7 @@ def bulk_download():
         "sortBy": "timestamp",
         "sortOrder": "desc",
         "future": "false",
-        "offset": 0,
+        "offset": int(os.environ.get("OFFSET") or 0),
         "size": 10,
     }
     url = "https://mediathekviewweb.de/api/query"
@@ -191,7 +191,11 @@ def bulk_download():
     seen = set()
     while True:
         response = requests.post(url, data=json.dumps(query), headers=headers)
-        data = response.json()
+        try:
+            data = response.json()
+        except Exception:
+            print(response.content)
+            breakpoint()
         if data.get("err"):
             raise Exception(data)
         print(
