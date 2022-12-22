@@ -40,9 +40,13 @@ def write_seen_ids(ids):
 
 
 def zammad_get(url):
+    auth = None
+    if "http_user" in config["zammad"]:
+        auth = (config["zammad"]["http_user"], config["zammad"]["http_pass"])
     response = requests.get(
         url=config["zammad"]["url"] + url,
         headers={"Authorization": f'Bearer {config["zammad"]["token"]}'},
+        auth=auth,
     )
     response.raise_for_status()
     return response.json()
@@ -85,12 +89,16 @@ def send_notification(notification):
             pass
     if not body:
         return
+    auth = ""
+    if "http_user" in config["zammad"]:
+        auth = f"{config['zammad']['http_user']}:{config['zammad']['http_pass']}@"
+
     payload = {
         "token": config["pushover"]["app"],
         "user": config["pushover"]["user"],
         "title": limit_length(f"{subject} ({name})", 250),
         "message": limit_length(body, 1024),
-        "url": config["zammad"]["url"] + f"/#ticket/zoom/{ticket_id}",
+        "url": f"{auth}{config['zammad']['url']}/#ticket/zoom/{ticket_id}",
         "url_title": "Go to ticket",
         "sound": "none",
     }
