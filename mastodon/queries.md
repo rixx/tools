@@ -100,7 +100,7 @@ Please note that we use this as a moderation tool and only when needed: When a t
 them, we need to know if the user inviting them has issued similar invites to other accounts, or if it was a one-off
 mistake. We don't regularly track invites otherwise (ain't nobody got time).
 
-```
+```sql
 SELECT
   a1.username,
   u1.created_at
@@ -119,7 +119,7 @@ WHERE
 Note: crossposter, bridge, feed2toot, wordpress
 
 ```sql
-SELECT id, name FROM oauth_applications WHERE LOWER(name) LIKE '%Bridge%';
+SELECT id, name FROM oauth_applications WHERE LOWER(name) LIKE '%bridge%';
 ```
 
 ## Show public posts by OAuth application
@@ -149,5 +149,25 @@ WHERE
 ORDER BY
   statuses.id DESC
 LIMIT
-  10;
+  100;
+```
+
+# Show domains to which people moved recently
+
+```sql
+SELECT
+  moved.domain,
+  COUNT(moved.domain)
+FROM
+  accounts
+  JOIN accounts AS moved ON accounts.moved_to_account_id = moved.id
+WHERE
+  accounts.domain IS NULL
+  AND accounts.moved_to_account_id IS NOT NULL
+  AND accounts.updated_at BETWEEN NOW() - INTERVAL '14 DAYS'
+  AND NOW()
+GROUP BY
+  moved.domain
+ORDER BY
+  count DESC;
 ```
