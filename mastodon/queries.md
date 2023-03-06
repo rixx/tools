@@ -138,10 +138,9 @@ WHERE
       oauth_applications
     WHERE
       LOWER(name) LIKE '%crossposter%'
-      or LOWER(name) LIKE '%wordpress%'
       or LOWER(name) LIKE '%feed2toot%'
       or LOWER(name) LIKE '%bridge%'
-      or LOWER(name) LIKE '%share%'
+      or LOWER(name) LIKE '%moa%'
   )
   AND statuses.reblog_of_id IS null
   AND statuses.in_reply_to_id IS null
@@ -149,7 +148,7 @@ WHERE
 ORDER BY
   statuses.id DESC
 LIMIT
-  100;
+  20;
 ```
 
 # Show domains to which people moved recently
