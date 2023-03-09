@@ -231,7 +231,7 @@ def bulk_download():
                 # print(f"Episode exists on disk: {found[0]}")
                 continue
             filename = get_episode_filename(episode)
-            print(f"Downloading episode['episode'] – {episode['titel']} to {filename}")
+            print(f"Downloading {episode['episode']} – {episode['titel']} to {filename}")
             urls = [entry["url_video_hd"], entry["url_video"], entry["url_video_low"]]
             for url in urls:
                 if not url:
