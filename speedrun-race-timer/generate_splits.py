@@ -1,6 +1,6 @@
 MYLA = ["Mound", "Greenpath", "Dash", "Claw", "Blue Lake", "Sly", "Cdash"]
 
-TE = ["Mound", "Greenpath", "Dash", "Blue Lake", "Elder Hu", "Claw", "Glade", "Gorgeous Husk", "Lantern", "Cdash", "Lurien", "BV", "LK", "FC", "Hornet", "Shade Cloak", "Markoth", "Gorb", "Monomon", "No Eyes", "Marmu", "TL", "Galien", "Herrah", "WP Entrance", "WP Exit", "Void Heart", "Black Egg", "THK"]
+TE = ["Mound", "Greenpath", "Dash", "Blue Lake", "Elder Hu", "Claw", "Glade", "Gorgeous Husk", "Lantern", "Cdash", "Shade Soul", "Lurien", "BV", "LK", "FC", "Hornet", "Shade Cloak", "Markoth", "Gorb", "Monomon", "No Eyes", "Marmu", "TL", "Galien", "Herrah", "WP Entrance", "WP Exit", "Void Heart", "Black Egg", "THK"]
 
 TE_SCSBCP = ["Mound", "Greenpath", "Dash", "Blue Lake", "Elder Hu", "Claw", "Glade", "Gorgeous Husk", "Lantern", "Cdash", "Wraiths", "No Eyes", "Gorb", "BV", "LK", "Dream Gate", "Hornet", "Shriek", "Shade Cloak", "Markoth", "Lurien", "FC", "Monomon", "Marmu", "TL", "Herrah", "WP Entrance", "WP Exit", "Void Heart", "Black Egg", "THK"]
 
