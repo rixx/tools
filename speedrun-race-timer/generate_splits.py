@@ -28,7 +28,7 @@ result = "\n".join(
           <td></td>
           <td></td>
         </tr>"""
-        for split in SPLITS
+        for split in SPLITS + ["gg"]
     ]
 )
 
