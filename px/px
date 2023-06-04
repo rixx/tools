@@ -268,6 +268,17 @@ def init(*, args):
             for venv in config["venvs"]:
                 # install and activate plugins
                 path = f"{cwd}/{venv}/bin/pip"
+                if not Path(path).exists():
+                    subprocess_run(
+                        [
+                            "python3",
+                            "-m",
+                            "venv",
+                            venv,
+                        ],
+                        check=True,
+                        cwd=cwd,
+                    )
                 subprocess_run(
                     [
                         path,
