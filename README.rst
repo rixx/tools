@@ -19,3 +19,9 @@ Things that make my daily life better.
 - stepify: parse stepmania files for a desired bpm range, and see if we can find them on spotify
 - tatort: download ALL the tatorts
 - zammad-notify: poll zammad notifications and send them to pushover.
+
+Setup
+=====
+
+Usually, install the requirements.txt in the script's directory. If you want to install
+all requirements for all scripts, run ``./install-all.sh``.
