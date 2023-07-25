@@ -24,4 +24,7 @@ Setup
 =====
 
 Usually, install the requirements.txt in the script's directory. If you want to install
-all requirements for all scripts, run ``./install-all.sh``.
+all requirements for all scripts, run ``./develop-all.sh``.
+
+To put all scripts in your path, run ``./install-all.sh``. This will create symlinks in
+``~/.local/bin``.
