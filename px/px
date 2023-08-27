@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 CONFIG = "/etc/px.conf"
-NGINX = "/etc/nginx/sites/pretalx.conf"
+CADDY = "/etc/caddy/conf.d/pretalx.conf"
 SOCKET = "/run/gunicorn/pretalx_{}"
 PYTHON_VERSION = "3.8"
 
@@ -215,13 +215,13 @@ def update(*, args):
         check=True,
         cwd=cwd,
     )
-    print("Changing nginx config …")
+    print("Changing caddy config …")
     subprocess_run(
-        ["sudo", "sed", "-i", f"s/{current_venv}/{next_venv}/g", NGINX],
+        ["sudo", "sed", "-i", f"s/{current_venv}/{next_venv}/g", CADDY],
         check=True,
         cwd=cwd,
     )
-    print("Reloading nginx …")
+    print("Reloading caddy …")
     subprocess_run(["sudo", "systemctl", "reload", "caddy"], check=True, cwd=cwd)
     print("Stopping old pretalx process …")
     subprocess_run(
