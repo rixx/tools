@@ -219,7 +219,7 @@ def update(*, args):
         cwd=cwd,
     )
     print("Reloading nginx …")
-    subprocess_run(["sudo", "systemctl", "reload", "openresty"], check=True, cwd=cwd)
+    subprocess_run(["sudo", "systemctl", "reload", "caddy"], check=True, cwd=cwd)
     print("Stopping old pretalx process …")
     subprocess_run(
         ["sudo", "systemctl", "stop", f"pretalx@{current_venv}.service"],
