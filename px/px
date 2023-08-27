@@ -141,7 +141,7 @@ def update(*, args):
             "-U",
             "--upgrade-strategy",
             "eager",
-            f"git+https://github.com/pretalx/pretalx.git@{version}#egg=pretalx&subdirectory=src",
+            f"git+https://github.com/pretalx/pretalx.git@{version}#egg=pretalx",
             "django_redis",
             "gunicorn",
             "wheel",
