@@ -8,7 +8,7 @@ from pathlib import Path
 CONFIG = "/etc/px.conf"
 CADDY = "/etc/caddy/conf.d/pretalx.conf"
 SOCKET = "/run/gunicorn/pretalx_{}"
-PYTHON_VERSION = "3.8"
+PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
 
 
 def print_help():
