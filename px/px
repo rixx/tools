@@ -150,6 +150,8 @@ def update(*, args):
                 [
                     "git",
                     "pull",
+                    # always use upstream and discard local changes
+                    "--force",
                 ],
                 cwd=plugin_path,
                 check=True,
