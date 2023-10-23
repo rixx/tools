@@ -19,6 +19,14 @@ KNOWN_BAD = ("die-professorin-tatort-ölfeld",)
 OFFSET = int(os.environ.get("OFFSET") or 0)
 
 
+def check_youtube_dl():
+    try:
+        subprocess.check_output(["youtube-dl", "--version"])
+    except FileNotFoundError:
+        print("youtube-dl not found. Please install it.")
+        sys.exit(1)
+
+
 def serialize_episode(line):
     fields = line.findAll("td")
     if not fields:
@@ -249,6 +257,7 @@ def bulk_download():
                 print(
                     f"None of the URLs for {episode['episode']} – {episode['titel']} work, skipping."
                 )
+                print(urls)
         OFFSET += size
         query["offset"] = OFFSET
 
@@ -258,8 +267,10 @@ if __name__ == "__main__":
     if arg == "update_csv":
         update_csv()
     elif arg == "download":
+        check_youtube_dl()
         download()
     elif arg == "bulk":
+        check_youtube_dl()
         while True:
             try:
                 bulk_download()
