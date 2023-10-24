@@ -10,10 +10,12 @@ from pathlib import Path
 import bs4
 import inquirer
 import requests
+from openpyxl import load_workbook
 
 
 CWD = Path(os.getcwd())
 CSV_PATH = Path(__file__).parent / "episodes.csv"
+SPREADSHEET_PATH = "/home/rixx/lib/movies/tatort.xlsx"
 EPISODES = []
 KNOWN_BAD = ("die-professorin-tatort-ölfeld",)
 OFFSET = int(os.environ.get("OFFSET") or 0)
@@ -239,7 +241,9 @@ def bulk_download():
                 # print(f"Episode exists on disk: {found[0]}")
                 continue
             filename = get_episode_filename(episode)
-            print(f"Downloading {episode['episode']} – {episode['titel']} to {filename}")
+            print(
+                f"Downloading {episode['episode']} – {episode['titel']} to {filename}"
+            )
             urls = [entry["url_video_hd"], entry["url_video"], entry["url_video_low"]]
             for url in urls:
                 if not url:
@@ -262,6 +266,33 @@ def bulk_download():
         query["offset"] = OFFSET
 
 
+def get_available_episodes():
+    # in cwd, match dddd-*.mp4, return the numbers
+    return [int(e.name[:4]) for e in CWD.glob("*.mp4")]
+
+
+def get_watched_episodes():
+    wb = load_workbook(SPREADSHEET_PATH)
+    return [
+        int(e.value)
+        for e in wb["Folgen"]["A"]
+        if e.value and isinstance(e.value, int) or e.value.isdigit()
+    ]
+
+
+def watch():
+    watched = get_watched_episodes()
+    available = get_available_episodes()
+    print(f"Watched: {watched}")
+    for episode in sorted(available):
+        if not episode in watched:
+            break
+    path = find_episode(episode)[0]
+    print(f"Watching {path}")
+    subprocess.call(["vlc", path])
+    subprocess.call(["libreoffice", SPREADSHEET_PATH])
+
+
 if __name__ == "__main__":
     arg = sys.argv[1]
     if arg == "update_csv":
@@ -278,7 +309,9 @@ if __name__ == "__main__":
             except Exception:
                 print(f"Failure, increasing offset to {OFFSET + 1}")
                 OFFSET += 1
+    elif arg == "watch":
+        watch()
     else:
         print(
-            "Call script with either 'update_csv' or 'download' (with a link or without to enter interactive mode)"
+            "Call script with 'update_csv', 'download' (with a link or without to enter interactive mode), 'bulk' or 'watch'"
         )
