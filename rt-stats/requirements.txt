@@ -1,1 +1,2 @@
-git+https://github.com/CZ-NIC/python-rt.git
+rt
+click

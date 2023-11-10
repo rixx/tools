@@ -1,12 +1,21 @@
 import json
+import pathlib
+import sys
 
 import click
-import rt
+import httpx
+import rt.rest2
 
 
 def get_tracker(auth_data):
-    tracker = rt.Rt(auth_data["url"], auth_data["username"], auth_data["password"])
-    if not tracker.login() is True:
+    tracker = rt.rest2.Rt(
+        url=auth_data["url"],
+        http_auth=httpx.BasicAuth(
+            auth_data["username"],
+            auth_data["password"],
+        ),
+    )
+    if not tracker.get_all_queues():
         click.echo("Error logging in!")
         sys.exit(-1)
     return tracker
@@ -35,7 +44,7 @@ def auth(auth):
         click.echo("Credentials are already present.")
         sys.exit(0)
 
-    url = click.prompt("URL", default="https://rt.cccv.de/REST/1.0/")
+    url = click.prompt("URL", default="https://rt.cccv.de/REST/2.0/")
     user = click.prompt("Username")
     password = click.prompt("Password")
     auth_data = {"url": url, "username": user, "password": password}
@@ -44,3 +53,7 @@ def auth(auth):
     click.echo()
     click.echo(f"Your authentication credentials have been saved to {auth}.")
     click.echo()
+
+
+if __name__ == "__main__":
+    cli()
