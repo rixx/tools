@@ -120,34 +120,35 @@ def stats(queue, auth, ignore_users):
             if (
                 "@" in transaction["Creator"]["Name"]
                 or transaction["Creator"]["Name"] in ignore_users
+                or transaction["Type"]
+                in (
+                    "AddReminder",
+                    "AddWatcher",
+                    "Create",
+                    "DelWatcher",
+                    "SetWatcher",
+                )
             ):
                 continue
-            if transaction["Type"] in (
-                "AddReminder",
-                "AddWatcher",
-                "Create",
-                "DelWatcher",
-                "SetWatcher",
-            ):
-                continue
+
             action_types[transaction["Type"]] += 1
+
             if transaction["Type"] in (
                 "AddLink",
                 "Comment",
-                "Correspond",
                 "Set",
                 "Status",
             ):
                 actions_by_user[transaction["Creator"]["Name"]] += 1
-            else:
-                unknown_types.add(transaction["Type"])
-                continue
-            if transaction["Type"] == "Correspond":
+            elif transaction["Type"] == "Correspond":
                 replies_by_user[transaction["Creator"]["Name"]] += 1
                 if not response_time:
                     response_time = get_time(transaction["Created"]) - get_time(
                         ticket["Created"]
                     )
+            else:
+                unknown_types.add(transaction["Type"])
+                continue
         if response_time and response_time < dt.timedelta(days=30):
             # we never take longer than a month to reply, this is weird data
             time_first_reply.append(response_time)
@@ -160,11 +161,12 @@ def stats(queue, auth, ignore_users):
     avg_response_time = sum(time_first_reply, dt.timedelta()) / len(time_first_reply)
     min_response_time = min(time_first_reply)
     max_response_time = max(time_first_reply)
-    print(
-        f"Average response time: {format_delta(avg_response_time)}, "
-        f"min: {format_delta(min_response_time)}, "
-        f"max: {format_delta(max_response_time)}\n"
-    )
+    median_response_time = sorted(time_first_reply)[len(time_first_reply) // 2]
+    print("#### Response times")
+    print(f"Average response time: {format_delta(avg_response_time)}")
+    print(f"Median response time:  {format_delta(median_response_time)}")
+    print(f"Min response time:     {format_delta(min_response_time)}")
+    print(f"Max response time:     {format_delta(max_response_time)}\n")
 
     print_leaderboard(action_types, "Action types")
     if unknown_types:
