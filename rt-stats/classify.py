@@ -92,18 +92,26 @@ def auth(auth):
 )
 @click.argument("queue")
 @click.option(
+    "--users",
+    type=click.STRING,
+    help="Only show tickets created by these users",
+    default="",
+)
+@click.option(
     "--ignore-users",
     type=click.STRING,
     help="Ignore tickets created by these users",
     default="",
 )
-def stats(queue, auth, ignore_users):
+def stats(queue, auth, ignore_users, users):
     auth = json.load(open(auth))
     rt = get_tracker(auth)
     queue = rt.get_queue(queue)
     tickets = rt.search(queue=queue["Name"])
+    users = set(users.split(","))
     ignore_users = set(ignore_users.split(","))
-    ignore_users.add("RT_System")
+    if not users:
+        ignore_users.add("RT_System")
 
     total = 0
     action_types = defaultdict(int)
@@ -117,17 +125,19 @@ def stats(queue, auth, ignore_users):
         history = rt.get_ticket_history(ticket["id"])
         response_time = None
         for transaction in history:
-            if (
-                "@" in transaction["Creator"]["Name"]
-                or transaction["Creator"]["Name"] in ignore_users
-                or transaction["Type"]
-                in (
-                    "AddReminder",
-                    "AddWatcher",
-                    "Create",
-                    "DelWatcher",
-                    "SetWatcher",
-                )
+            if users and transaction["Creator"]["Name"] not in users:
+                continue
+            if ignore_users and transaction["Creator"]["Name"] in ignore_users:
+                continue
+            if "@" in transaction["Creator"]["Name"]:
+                # Externally created user
+                continue
+            if transaction["Type"] in (
+                "AddReminder",
+                "AddWatcher",
+                "Create",
+                "DelWatcher",
+                "SetWatcher",
             ):
                 continue
 
