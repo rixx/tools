@@ -1,7 +1,7 @@
 import csv
 import json
-import re
 import os
+import re
 import subprocess
 import sys
 from contextlib import suppress
@@ -12,12 +12,17 @@ import inquirer
 import requests
 from openpyxl import load_workbook
 
-
 CWD = Path(os.getcwd())
 CSV_PATH = Path(__file__).parent / "episodes.csv"
 SPREADSHEET_PATH = "/home/rixx/lib/movies/tatort.xlsx"
 EPISODES = []
-KNOWN_BAD = ("die-professorin-tatort-ölfeld",)
+KNOWN_BAD = (
+    # kein tatort
+    "die-professorin-tatort-ölfeld",
+    # existiert 2x
+    "taxi-nach-leipzig",
+    "aus-der-traum",
+)
 OFFSET = int(os.environ.get("OFFSET") or 0)
 
 
@@ -103,7 +108,7 @@ def normalize_title(title):
     return title.strip()
 
 
-def get_episode_by_title(title):
+def get_episode_by_title(title, include_existing=True):
     title = normalize_title(title)
     slug = slugify(title)
     if slug in KNOWN_BAD:
@@ -124,8 +129,26 @@ def get_episode_by_title(title):
             if e["slug"].startswith(slug) or slug.startswith(e["slug"])
         ]
         if not matches:
-            print("Episode not found!")
+            print(f"Episode '{title}' not found!")
             return
+
+    if not matches:
+        return
+
+    if not include_existing:
+        exact_matches = [e for e in matches if normalize_title(e["titel"]) == title]
+        # Collect all episodes that are exact matches. If all of them exist, we don't need to continue.
+        if exact_matches and all(find_episode(e["episode"]) for e in exact_matches):
+            return
+        # Continue with only non-downloaded episodes
+        matches = [
+            e
+            for e in matches
+            if e not in exact_matches and not find_episode(e["episode"])
+        ]
+        if not matches:
+            return
+
     if len(matches) == 1:
         result = matches[0]
     else:
@@ -167,12 +190,9 @@ def get_episode_filename(episode):
 
 
 def handle_download(url, title=None):
-    episode = get_episode(url, title=title)
+    episode = get_episode(url, title=title, include_existing=False)
     if not episode:
-        return
-    found = find_episode(episode["episode"])
-    if found:
-        print(f"Episode exists on disk: {found[0]}")
+        print(f"Episode not found or exists already on disk.")
         return
     filename = get_episode_filename(episode)
     print(f"Downloading episode {episode['episode']}: {episode['titel']} to {filename}")
@@ -230,15 +250,8 @@ def bulk_download():
             if title in seen:
                 continue
             seen.add(title)
-            episode = get_episode_by_title(title)
+            episode = get_episode_by_title(title, include_existing=False)
             if not episode:
-                print(
-                    f"Unable to find episode for title {title}, with url {entry['url_video_hd']}"
-                )
-                continue
-            found = find_episode(episode["episode"])
-            if found:
-                # print(f"Episode exists on disk: {found[0]}")
                 continue
             filename = get_episode_filename(episode)
             print(
