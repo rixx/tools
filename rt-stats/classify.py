@@ -170,15 +170,18 @@ def stats(queue, auth, ignore_users, users):
     print_leaderboard(actions_by_user, "Actions")
     print_leaderboard(replies_by_user, "Replies")
 
-    avg_response_time = sum(time_first_reply, dt.timedelta()) / len(time_first_reply)
-    min_response_time = min(time_first_reply)
-    max_response_time = max(time_first_reply)
-    median_response_time = sorted(time_first_reply)[len(time_first_reply) // 2]
-    print("#### Response times")
-    print(f"Average response time: {format_delta(avg_response_time)}")
-    print(f"Median response time:  {format_delta(median_response_time)}")
-    print(f"Min response time:     {format_delta(min_response_time)}")
-    print(f"Max response time:     {format_delta(max_response_time)}\n")
+    if time_first_reply:
+        avg_response_time = sum(time_first_reply, dt.timedelta()) / len(
+            time_first_reply
+        )
+        min_response_time = min(time_first_reply)
+        max_response_time = max(time_first_reply)
+        median_response_time = sorted(time_first_reply)[len(time_first_reply) // 2]
+        print("#### Response times")
+        print(f"Average response time: {format_delta(avg_response_time)}")
+        print(f"Median response time:  {format_delta(median_response_time)}")
+        print(f"Min response time:     {format_delta(min_response_time)}")
+        print(f"Max response time:     {format_delta(max_response_time)}\n")
 
     print_leaderboard(action_types, "Action types")
     if unknown_types:
