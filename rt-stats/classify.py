@@ -27,7 +27,7 @@ def format_delta(delta):
 
 def print_leaderboard(data, title):
     total = sum(data.values())
-    print(f"#### {title}:")
+    print(f"#### {title}: {total}")
     for user, count in sorted(data.items(), key=lambda x: x[1], reverse=True):
         percent = count / total * 100
         # align users to 20 chars, counts to 5 chars and percent to 5 chars
