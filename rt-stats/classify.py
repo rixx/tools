@@ -139,6 +139,7 @@ def stats(queue, auth, ignore_users, users):
                 "DelWatcher",
                 "SetWatcher",
                 "ForwardTransaction",
+                "CustomField",
             ):
                 continue
 
@@ -150,6 +151,9 @@ def stats(queue, auth, ignore_users, users):
                 "Comment",
                 "Set",
                 "Status",
+                "Take",
+                "Give",
+                "Steal",
             ):
                 actions_by_user[transaction["Creator"]["Name"]] += 1
             elif transaction["Type"] == "Correspond":
