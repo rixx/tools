@@ -134,16 +134,18 @@ def stats(queue, auth, ignore_users, users):
                 continue
             if transaction["Type"] in (
                 "AddReminder",
+                "ResolveReminder",
                 "AddWatcher",
-                "Create",
                 "DelWatcher",
                 "SetWatcher",
+                "ForwardTransaction",
             ):
                 continue
 
             action_types[transaction["Type"]] += 1
 
             if transaction["Type"] in (
+                "Create",
                 "AddLink",
                 "Comment",
                 "Set",
