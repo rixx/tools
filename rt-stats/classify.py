@@ -108,8 +108,8 @@ def stats(queue, auth, ignore_users, users):
     rt = get_tracker(auth)
     queue = rt.get_queue(queue)
     tickets = rt.search(queue=queue["Name"])
-    users = set(users.split(","))
-    ignore_users = set(ignore_users.split(","))
+    users = set([u for u in users.split(",") if u])
+    ignore_users = set([u for u in ignore_users.split(",") if u])
     if not users:
         ignore_users.add("RT_System")
 
