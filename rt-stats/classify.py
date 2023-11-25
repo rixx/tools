@@ -115,7 +115,6 @@ def stats(queue, auth, ignore_users, users):
 
     total = 0
     emails_received = 0
-    self_created = 0
     action_types = defaultdict(int)
     actions_by_user = defaultdict(int)
     replies_by_user = defaultdict(int)
@@ -157,7 +156,6 @@ def stats(queue, auth, ignore_users, users):
             if transaction["Type"] == "Create":
                 # This ticket was created by us, no need to track response times
                 track_response_time = False
-                self_created += 1
 
             if transaction["Type"] in (
                 "Create",
@@ -183,9 +181,7 @@ def stats(queue, auth, ignore_users, users):
             time_first_reply.append(response_time)
 
     print(f"\n\n#### {queue['Name']}")
-    print(
-        f"Found {total} tickets in queue {queue['Name']} ({self_created} created by us)."
-    )
+    print(f"Found {total} tickets in queue {queue['Name']}.")
     print(f"Received {emails_received} incoming emails.\n")
     print_leaderboard(replies_by_user, "Replies")
     print_leaderboard(actions_by_user, "Actions")
