@@ -114,6 +114,7 @@ def stats(queue, auth, ignore_users, users):
         ignore_users.add("RT_System")
 
     total = 0
+    emails_received = 0
     action_types = defaultdict(int)
     actions_by_user = defaultdict(int)
     replies_by_user = defaultdict(int)
@@ -124,6 +125,7 @@ def stats(queue, auth, ignore_users, users):
         total += 1
         history = rt.get_ticket_history(ticket["id"])
         response_time = None
+        track_response_time = True
         for transaction in history:
             if users and transaction["Creator"]["Name"] not in users:
                 continue
@@ -131,6 +133,8 @@ def stats(queue, auth, ignore_users, users):
                 continue
             if "@" in transaction["Creator"]["Name"]:
                 # Externally created user
+                if transaction["Type"] in ("Correspond", "Create"):
+                    emails_received += 1
                 continue
             if transaction["Type"] in (
                 "AddReminder",
@@ -143,15 +147,19 @@ def stats(queue, auth, ignore_users, users):
                 "Forward Ticket",
                 "CustomField",
                 "Told",
+                "DeleteLink",
             ):
                 continue
 
             action_types[transaction["Type"]] += 1
 
+            if transaction["Type"] == "Create":
+                # This ticket was created by us, no need to track response times
+                track_response_time = False
+
             if transaction["Type"] in (
                 "Create",
                 "AddLink",
-                "DeleteLink",
                 "Comment",
                 "Set",
                 "Status",
@@ -162,38 +170,42 @@ def stats(queue, auth, ignore_users, users):
                 actions_by_user[transaction["Creator"]["Name"]] += 1
             elif transaction["Type"] == "Correspond":
                 replies_by_user[transaction["Creator"]["Name"]] += 1
-                if not response_time:
+                if not response_time and track_response_time:
                     response_time = get_time(transaction["Created"]) - get_time(
                         ticket["Created"]
                     )
             else:
                 unknown_types.add(transaction["Type"])
                 continue
-        if response_time and response_time < dt.timedelta(days=30):
-            # we never take longer than a month to reply, this is weird data
+        if track_response_time and response_time and response_time > dt.timedelta():
             time_first_reply.append(response_time)
 
     print(f"\n\n#### {queue['Name']}")
-    print(f"Found {total} tickets in queue {queue['Name']}.\n")
-    print_leaderboard(actions_by_user, "Actions")
+    print(
+        f"Found {total} tickets in queue {queue['Name']} and received {emails_received} incoming emails.\n"
+    )
     print_leaderboard(replies_by_user, "Replies")
+    print_leaderboard(actions_by_user, "Actions")
 
     if time_first_reply:
-        avg_response_time = sum(time_first_reply, dt.timedelta()) / len(
-            time_first_reply
-        )
-        min_response_time = min(time_first_reply)
-        max_response_time = max(time_first_reply)
-        median_response_time = sorted(time_first_reply)[len(time_first_reply) // 2]
-        print("#### Response times")
-        print(f"Average response time: {format_delta(avg_response_time)}")
-        print(f"Median response time:  {format_delta(median_response_time)}")
-        print(f"Min response time:     {format_delta(min_response_time)}")
-        print(f"Max response time:     {format_delta(max_response_time)}\n")
+        # exclude outliers on the upper end (top 2%)
+        exclude = len(time_first_reply) // 50
+        time_first_reply = sorted(time_first_reply)[: len(time_first_reply) - exclude]
+
+        avg_time = sum(time_first_reply, dt.timedelta()) / len(time_first_reply)
+        min_time = min(time_first_reply)
+        max_time = max(time_first_reply)
+        median_time = sorted(time_first_reply)[len(time_first_reply) // 2]
+
+        print("#### Response times (without upper 2%)")
+        print(f"Average response time: {format_delta(avg_time)}")
+        print(f"Median response time:  {format_delta(median_time)}")
+        print(f"Min response time:     {format_delta(min_time)}")
+        print(f"Max response time:     {format_delta(max_time)}\n")
 
     print_leaderboard(action_types, "Action types")
     if unknown_types:
-        print(f"Unknown types: {unknown_types}")
+        print(f"\nUnknown types: {unknown_types}")
 
 
 if __name__ == "__main__":
