@@ -191,8 +191,8 @@ def stats(queue, auth, ignore_users, users):
     print_leaderboard(actions_by_user, "Actions")
 
     if time_first_reply:
-        # exclude outliers on the upper end (top 2%)
-        exclude = len(time_first_reply) // 50
+        # exclude outliers on the upper end (top 1%)
+        exclude = len(time_first_reply) // 100
         time_first_reply = sorted(time_first_reply)[: len(time_first_reply) - exclude]
 
         avg_time = sum(time_first_reply, dt.timedelta()) / len(time_first_reply)
@@ -200,7 +200,7 @@ def stats(queue, auth, ignore_users, users):
         max_time = max(time_first_reply)
         median_time = sorted(time_first_reply)[len(time_first_reply) // 2]
 
-        print("#### Response times (without upper 2%)")
+        print("#### Response times (without upper 1%)")
         print(f"Average response time: {format_delta(avg_time)}")
         print(f"Median response time:  {format_delta(median_time)}")
         print(f"Min response time:     {format_delta(min_time)}")
