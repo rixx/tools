@@ -139,7 +139,10 @@ def stats(queue, auth, ignore_users, users):
                 "DelWatcher",
                 "SetWatcher",
                 "ForwardTransaction",
+                "Forward Transaction",
+                "Forward Ticket",
                 "CustomField",
+                "Told",
             ):
                 continue
 
@@ -148,6 +151,7 @@ def stats(queue, auth, ignore_users, users):
             if transaction["Type"] in (
                 "Create",
                 "AddLink",
+                "DeleteLink",
                 "Comment",
                 "Set",
                 "Status",
