@@ -127,14 +127,14 @@ def stats(queue, auth, ignore_users, users):
         response_time = None
         track_response_time = True
         for transaction in history:
-            if users and transaction["Creator"]["Name"] not in users:
-                continue
-            if ignore_users and transaction["Creator"]["Name"] in ignore_users:
-                continue
             if "@" in transaction["Creator"]["Name"]:
                 # Externally created user
                 if transaction["Type"] in ("Correspond", "Create"):
                     emails_received += 1
+                continue
+            if users and transaction["Creator"]["Name"] not in users:
+                continue
+            if ignore_users and transaction["Creator"]["Name"] in ignore_users:
                 continue
             if transaction["Type"] in (
                 "AddReminder",
