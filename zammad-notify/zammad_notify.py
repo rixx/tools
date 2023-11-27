@@ -112,7 +112,12 @@ def send_notification(notification):
 
 def main():
     seen_ids = get_seen_ids()
-    notifications = get_unread_notifications()
+    try:
+        notifications = get_unread_notifications()
+    except Exception as e:
+        # This usually happens when DNS is failing.
+        # Fail quietly, as exceptions are just annoying, and this isn't critical.
+        return
     new_seen_ids = []
     for notification in notifications:
         if notification["id"] not in seen_ids:
