@@ -296,12 +296,14 @@ def get_watched_episodes():
 def watch():
     watched = get_watched_episodes()
     available = get_available_episodes()
-    print(f"Watched: {watched}")
     for episode in sorted(available):
         if not episode in watched:
             break
     path = find_episode(episode)[0]
-    print(f"Watching {path}")
+    global EPISODES
+    if not EPISODES:
+        EPISODES = load_csv()
+    print(f"Watching {episode}: {EPISODES[episode]['titel']}")
     subprocess.call(["vlc", path])
     subprocess.call(["libreoffice", SPREADSHEET_PATH])
 
