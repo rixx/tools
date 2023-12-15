@@ -303,7 +303,11 @@ def watch():
     global EPISODES
     if not EPISODES:
         EPISODES = load_csv()
-    print(f"Watching {episode}: {EPISODES[episode]['titel']}")
+    print()
+    print("#" * 80)
+    print(f"#  Watching {episode}: {EPISODES[episode]['titel']}")
+    print("#" * 80)
+    print()
     subprocess.call(["vlc", path])
     subprocess.call(["libreoffice", SPREADSHEET_PATH])
 
