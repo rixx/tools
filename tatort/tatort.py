@@ -305,7 +305,7 @@ def watch():
         EPISODES = load_csv()
     print()
     print("#" * 80)
-    print(f"#  Watching {episode}: {EPISODES[episode]['titel']}")
+    print(f"#  Watching {episode}: {EPISODES[episode - 1]['titel']}")
     print("#" * 80)
     print()
     subprocess.call(["vlc", path])
