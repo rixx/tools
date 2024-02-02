@@ -9,20 +9,15 @@ from bs4 import BeautifulSoup
 config = configparser.ConfigParser()
 config.read("notify.cfg")
 
-
-BODY_BLOCKED = [  # heh.
-    "есть",
-    "Spam detection software, running on the system",
+IGNORE_SUBJECT = [
+    term.strip().lower()
+    for term in config.get("ignore", "subject", fallback="").split("\n")
+    if term.strip()
 ]
-# Most of these are now filtered in Zammad, but better safe than sorry
-SUBJECT_BLOCKED = [
-    "undelivered mail returned to sender",
-    "delivery status notification",
-    "automatic reply",
-    "auto reply",
-    "away from work",
-    "out of office",
-    "rt @",
+IGNORE_BODY = [
+    term.strip().lower()
+    for term in config.get("ignore", "body", fallback="").split("\n")
+    if term.strip()
 ]
 
 
@@ -48,10 +43,10 @@ class Ticket:
     def should_notify(self):
         if not self.body:
             return False
-        for blocked in SUBJECT_BLOCKED:
+        for blocked in IGNORE_SUBJECT:
             if blocked in self.subject.lower():
                 return False
-        for blocked in BODY_BLOCKED:
+        for blocked in IGNORE_BODY:
             if blocked in self.body.lower():
                 return False
 
