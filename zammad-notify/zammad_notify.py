@@ -55,7 +55,7 @@ class Ticket:
             if blocked in self.body.lower():
                 return False
 
-    def send_notification(self, force=False):
+    def send_pushover(self, force=False):
         if not self.should_notify() and not force:
             return
         name = self.customer_name or f"<{self.customer_email}>"
@@ -122,8 +122,7 @@ def main():
     new_seen_ids = []
     for notification in notifications:
         if notification["id"] not in seen_ids:
-            ticket = Ticket(notification["o_id"])
-            ticket.send_notification()
+            Ticket(notification["o_id"]).send_pushover()
         new_seen_ids.append(notification["id"])
     write_seen_ids(new_seen_ids)
 
