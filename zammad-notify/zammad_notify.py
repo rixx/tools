@@ -9,30 +9,33 @@ from bs4 import BeautifulSoup
 config = configparser.ConfigParser()
 config.read("notify.cfg")
 
-IGNORE_SUBJECT = [
-    term.strip().lower()
-    for term in config.get("ignore", "subject", fallback="").split("\n")
-    if term.strip()
-]
-IGNORE_BODY = [
-    term.strip().lower()
-    for term in config.get("ignore", "body", fallback="").split("\n")
-    if term.strip()
-]
+
+def get_config_list(section, key):
+    return [
+        term.strip().lower()
+        for term in config.get(section, key, fallback="").split("\n")
+        if term.strip()
+    ]
+
+
+IGNORE_SUBJECT = get_config_list("ignore", "subject")
+IGNORE_BODY = get_config_list("ignore", "body")
+IGNORE_TAGS = set(get_config_list("ignore", "tags"))
 
 
 class Ticket:
     def __init__(self, ticket_id):
+        ticket_data = zammad_get(f"/tickets/{ticket_id}")
+        customer = zammad_get(f'/users/{ticket_data["customer_id"]}')
+        body = zammad_get(f"/ticket_articles/by_ticket/{ticket_id}")[-1]["body"]
+
         self.ticket_id = ticket_id
-        ticket = zammad_get(f"/api/v1/ticket_articles/by_ticket/{self.ticket_id}")[-1]
-        ticket_data = zammad_get(f"/api/v1/tickets/{self.ticket_id}")
-        customer_data = zammad_get(f'/api/v1/users/{ticket_data["customer_id"]}')
         self.subject = ticket_data["title"]
         self.customer_name = (
-            customer_data["firstname"] + " " + customer_data["lastname"]
+            customer["firstname"] + " " + customer["lastname"]
         ).strip()
-        self.customer_email = customer_data["email"]
-        body = ticket["body"]
+        self.customer_email = customer["email"]
+        self.tags = zammad_get(f"/tags?object=Ticket&o_id={ticket_id}")["tags"]
         if "<" in body:
             try:
                 body = BeautifulSoup(body, "html.parser").text.strip()
@@ -41,6 +44,8 @@ class Ticket:
         self.body = body
 
     def should_notify(self):
+        if set(self.tags) & IGNORE_TAGS:
+            return False
         if not self.body:
             return False
         for blocked in IGNORE_SUBJECT:
@@ -88,7 +93,7 @@ def write_seen_ids(ids):
 
 def zammad_get(url):
     response = requests.get(
-        url=config["zammad"]["url"] + url,
+        url=config["zammad"]["url"] + "/api/v1" + url,
         headers={"Authorization": f'Bearer {config["zammad"]["token"]}'},
     )
     response.raise_for_status()
@@ -96,7 +101,7 @@ def zammad_get(url):
 
 
 def get_unread_notifications():
-    response = zammad_get("/api/v1/online_notifications")
+    response = zammad_get("/online_notifications")
     return [notification for notification in response if notification["seen"] is False]
 
 
