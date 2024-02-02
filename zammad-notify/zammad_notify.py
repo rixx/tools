@@ -92,13 +92,9 @@ def write_seen_ids(ids):
 
 
 def zammad_get(url):
-    auth = None
-    if "http_user" in config["zammad"]:
-        auth = (config["zammad"]["http_user"], config["zammad"]["http_pass"])
     response = requests.get(
         url=config["zammad"]["url"] + url,
         headers={"Authorization": f'Bearer {config["zammad"]["token"]}'},
-        auth=auth,
     )
     response.raise_for_status()
     return response.json()
