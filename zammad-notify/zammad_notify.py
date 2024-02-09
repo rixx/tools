@@ -54,6 +54,7 @@ class Ticket:
         for blocked in IGNORE_BODY:
             if blocked in self.body.lower():
                 return False
+        return True
 
     def send_pushover(self, force=False):
         if not self.should_notify() and not force:
