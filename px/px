@@ -17,6 +17,7 @@ def print_help():
 Usage:
   px status  Show information on the currently running pretalx
   px run     Run a command with the current pretalx, e.g. px run shell_scoped --override
+  px celery  Run a celery command with the current pretalx, e.g. px celery events, or px celery inspect [active/scheduled]
   px update  Update to a given git ref, or main, if none was given.
      --no-plugins  Skips plugin updates
      --skip-rebuild  Skips the rebuild step
@@ -77,7 +78,7 @@ def status(*, args):
         print(f"{key}: {value}")
 
 
-def pretalx_run(*, args, env=None, config=None, chdir=True):
+def _run_venv_command(args, env=None, config=None, chdir=True):
     config = config or get_config()
     if not env:
         env = config.get("current")
@@ -85,11 +86,16 @@ def pretalx_run(*, args, env=None, config=None, chdir=True):
         raise Exception("Can't determine venv to run command in.")
     user = config["user"]
     path = f"/var/lib/{user}/{env}/bin/python"
-    subprocess_run(
-        [path, "-m", "pretalx", *args],
-        check=True,
-        cwd=f"/var/lib/{user}/" if chdir else None,
-    )
+    chdir = f"/var/lib/{user}/" if chdir else None
+    subprocess_run([path, *args], check=True, cwd=chdir)
+
+
+def pretalx_run(*, args, **kwargs):
+    return _run_venv_command(args=["-m", "pretalx"], **kwargs)
+
+
+def celery_run(*, args, **kwargs):
+    return _run_venv_command(args=["-m", "celery", *args], **kwargs)
 
 
 def sha_equal(a, b):
@@ -364,6 +370,7 @@ def main():
     commands = {
         "status": status,
         "run": pretalx_run,
+        "celery": celery_run,
         "update": update,
         "autoupdate": autoupdate,
         "init": init,
