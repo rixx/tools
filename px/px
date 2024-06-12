@@ -264,7 +264,14 @@ def update(*, args):
         cwd=cwd,
     )
     print("Reloading caddy …")
-    subprocess_run(["sudo", "systemctl", "reload", "caddy"], check=True, cwd=cwd)
+    try:
+        subprocess_run(["sudo", "systemctl", "reload", "caddy"], check=True, cwd=cwd)
+    except Exception:
+        # Try a second time, then restart, then give up
+        try:
+            subprocess_run(["sudo", "systemctl", "reload", "caddy"], check=True, cwd=cwd)
+        except Exception:
+            subprocess_run(["sudo", "systemctl", "restart", "caddy"], check=True, cwd=cwd)
     print("Stopping old pretalx process …")
     subprocess_run(
         ["sudo", "systemctl", "stop", f"pretalx@{current_venv}.service"],
