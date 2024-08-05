@@ -116,12 +116,6 @@ class Entry:
             "url_title": "Go to website",
             "sound": "none",
         }
-        print("-" * 80)
-        print(payload["title"])
-        print(payload["message"])
-        print(payload["url"])
-        print("-" * 80)
-        return
         response = requests.post(
             url="https://api.pushover.net/1/messages.json",
             data=json.dumps(payload),
