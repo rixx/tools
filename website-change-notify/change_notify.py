@@ -84,7 +84,7 @@ class Entry:
         return True
 
     def render_template(self, template, context):
-        return template.format(**context)
+        return template.format(**context).strip("\"' \n")
 
     def send_pushover(self, force=False):
         if not self.should_notify() and not force:
