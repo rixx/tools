@@ -1,0 +1,116 @@
+#!/usr/bin/env python3
+
+# Simple python server logging all incoming requests, including headers and body
+# to the console.
+# Usage: python pserver.py
+
+import datetime
+import http.server
+import json
+import sys
+from contextlib import suppress
+
+
+def draw_dict_table(data, title=None, line_separators=False):
+    longest_key = max(len(k) for k in data.keys())
+    longest_value = max(len(str(v)) for v in data.values())
+    line_length = longest_key + longest_value + 5
+
+    simple_line = "─" * (longest_key + 2) + "{center}" + "─" * (longest_value + 2)
+    top_sep = "┌" + simple_line.format(center="┬" if not title else "─") + "┐"
+    middle_sep = "├" + simple_line.format(center="┼") + "┤"
+    bottom_sep = "└" + simple_line.format(center="┴") + "┘"
+
+    print(top_sep)
+    if title:
+        print("│" + title.center(line_length) + "│")
+        print("├" + simple_line.format(center="┬") + "┤")
+
+    for line, (k, v) in enumerate(data.items()):
+        print("│ " + k.ljust(longest_key) + " │ " + str(v).ljust(longest_value) + " │")
+        if line_separators and line < len(data) - 1:
+            print(middle_sep)
+    print(bottom_sep)
+
+
+def print_body(body, content_type=None):
+    if not body:
+        print()
+        print("No body")
+        return
+    if not content_type or "json" in content_type:
+        with suppress(Exception):
+            body_dict = json.loads(body)
+            draw_dict_table(body_dict, "BODY")
+            return
+    elif "www-form-urlencoded" in content_type:
+        with suppress(Exception):
+            body_dict = dict([tuple(pair.split("=")) for pair in body.split("&")])
+            draw_dict_table(body_dict, "BODY")
+            return
+    print()
+    print(body)
+
+
+class DebugHandler(http.server.BaseHTTPRequestHandler):
+
+    def log_request(self, code="-", size="-"):
+        draw_dict_table(
+            {
+                "Method": self.command,
+                "Path": self.path,
+                "Full request": self.requestline,
+                "Client": self.client_address,
+                "Time": datetime.datetime.now().isoformat(),
+            },
+            "REQUEST",
+        )
+        draw_dict_table(self.headers, "HEADERS")
+        if self.command in ["POST", "PUT", "PATCH"]:
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_length)
+            try:
+                print_body(body.decode(), self.headers.get("Content-Type"))
+            except Exception:
+                print("Could not print body")
+        print()
+        print("═" * 80)
+        print()
+
+    def log_message(self, format, *args):
+        return
+
+    def _default_response(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"OK")
+
+    do_GET = _default_response
+    do_POST = _default_response
+    do_PUT = _default_response
+    do_DELETE = _default_response
+    do_HEAD = _default_response
+    do_OPTIONS = _default_response
+    do_PATCH = _default_response
+    do_TRACE = _default_response
+    do_CONNECT = _default_response
+    do_PROPFIND = _default_response
+
+
+def run(port):
+    server_address = ("localhost", port)
+    httpd = http.server.HTTPServer(server_address, DebugHandler)
+    print(f"Starting debug server on localhost:{port}")
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        print()
+        print("Shutting down server")
+
+
+if __name__ == "__main__":
+    port = 8000
+    if len(sys.argv) > 1:
+        with suppress(Exception):
+            port = int(sys.argv[1])
+    run(port=port)
