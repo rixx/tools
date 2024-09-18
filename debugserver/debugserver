@@ -40,8 +40,14 @@ def print_body(body, content_type=None):
         return
     if not content_type or "json" in content_type:
         with suppress(Exception):
-            body_dict = json.loads(body)
-            draw_dict_table(body_dict, "BODY")
+            body_data = json.loads(body)
+            if isinstance(body_data, dict):
+                draw_dict_table(body_data, "BODY")
+            elif isinstance(body_data, list):
+                draw_dict_table({str(i): v for i, v in enumerate(body_data)}, "BODY")
+            else:
+                print()
+                print(body)
             return
     elif "www-form-urlencoded" in content_type:
         with suppress(Exception):
