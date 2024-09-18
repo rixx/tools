@@ -115,6 +115,9 @@ def run(port):
 
 
 if __name__ == "__main__":
+    if "-h" in sys.argv or "--help" in sys.argv:
+        print("Usage: python pserver.py [port]")
+        sys.exit(0)
     port = 8000
     if len(sys.argv) > 1:
         with suppress(Exception):
