@@ -91,7 +91,7 @@ def _run_venv_command(args, env=None, config=None, chdir=True):
 
 
 def pretalx_run(*, args, **kwargs):
-    return _run_venv_command(args=["-m", "pretalx"], **kwargs)
+    return _run_venv_command(args=["-m", "pretalx", *args], **kwargs)
 
 
 def celery_run(*, args, **kwargs):
