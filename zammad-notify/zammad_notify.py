@@ -21,6 +21,7 @@ def get_config_list(section, key):
 IGNORE_SUBJECT = get_config_list("ignore", "subject")
 IGNORE_BODY = get_config_list("ignore", "body")
 IGNORE_TAGS = set(get_config_list("ignore", "tags"))
+IGNORE_FROM = set(get_config_list("ignore", "from"))
 
 
 class Ticket:
@@ -53,6 +54,9 @@ class Ticket:
                 return False
         for blocked in IGNORE_BODY:
             if blocked in self.body.lower():
+                return False
+        for blocked in IGNORE_FROM:
+            if blocked in self.customer_email:
                 return False
         return True
 
