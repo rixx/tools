@@ -21,7 +21,8 @@ def get_config_list(section, key):
 IGNORE_SUBJECT = get_config_list("ignore", "subject")
 IGNORE_BODY = get_config_list("ignore", "body")
 IGNORE_TAGS = set(get_config_list("ignore", "tags"))
-IGNORE_FROM = set(get_config_list("ignore", "from"))
+IGNORE_FROM = get_config_list("ignore", "from")
+QUOTES = get_config_list("cut", "quotes")
 
 
 class Ticket:
@@ -69,7 +70,7 @@ class Ticket:
             "token": config["pushover"]["app"],
             "user": config["pushover"]["user"],
             "title": limit_length(f"{self.subject} ({name})", 250),
-            "message": limit_length(self.body, 1024),
+            "message": limit_length(cut_quote(self.body), 1024),
             "url": f"{config['zammad']['url']}/#ticket/zoom/{self.ticket_id}",
             "url_title": "Go to ticket",
             "sound": "none",
@@ -114,6 +115,19 @@ def limit_length(text, length):
     if len(text) <= length:
         return text
     return text[: length - 2] + "…"
+
+
+def cut_quote(text):
+    if not QUOTES:
+        return text
+    result = []
+
+    for line in text.split("\n"):
+        if line.endswith(":") and any(quote in line.lower() for quote in QUOTES):
+            break
+        result.append(line)
+
+    return "\n".join(result)
 
 
 def main():
