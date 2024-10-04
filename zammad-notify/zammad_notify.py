@@ -1,5 +1,6 @@
 #!/bin/python3
 import configparser
+import datetime as dt
 import json
 from contextlib import suppress
 
@@ -33,6 +34,7 @@ class Ticket:
 
         self.ticket_id = ticket_id
         self.subject = ticket_data["title"]
+        self.is_pending_reached = is_past(ticket_data.get("pending_time"))
         self.customer_name = (
             customer["firstname"] + " " + customer["lastname"]
         ).strip()
@@ -65,11 +67,14 @@ class Ticket:
         if not self.should_notify() and not force:
             return
         name = self.customer_name or f"<{self.customer_email}>"
+        title = f"{self.subject} ({name})"
+        if self.is_pending_reached:
+            title = f"Pending reminder reached: {title}"
 
         payload = {
             "token": config["pushover"]["app"],
             "user": config["pushover"]["user"],
-            "title": limit_length(f"{self.subject} ({name})", 250),
+            "title": limit_length(title, 250),
             "message": limit_length(cut_quote(self.body), 1024),
             "url": f"{config['zammad']['url']}/#ticket/zoom/{self.ticket_id}",
             "url_title": "Go to ticket",
@@ -109,6 +114,12 @@ def zammad_get(url):
 def get_unread_notifications():
     response = zammad_get("/online_notifications")
     return [notification for notification in response if notification["seen"] is False]
+
+
+def is_past(timestamp: str):
+    if not timestamp:
+        return False
+    return timestamp < dt.datetime.now().isoformat()
 
 
 def limit_length(text, length):
