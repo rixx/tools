@@ -212,8 +212,6 @@ def update(*, args):
         pretalx_run(args=["rebuild", "--silent"], env=next_venv, config=config)
     else:
         print("Skipping static file rebuild …")
-    print("Regenerating CSS …")
-    pretalx_run(args=["regenerate_css", "--silent"], env=next_venv, config=config)
     print("Stopping old celery worker …")
     subprocess_run(
         ["sudo", "systemctl", "stop", f"pretalx-worker@{current_venv}.service"],
