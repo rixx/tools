@@ -88,7 +88,8 @@ def format_value(value):
 def status(*, args):
     print("========== Current config ==========")
     config = get_config()
-    print(format_value(config))
+    for key, value in config.items():
+        print(f"{key}: {format_value(value)}")
     print("========== Current status ==========")
     systemd_pretalx("status")
 
