@@ -34,9 +34,8 @@ Usage:
 
 def subprocess_run(commands, **kwargs):
     command = " ".join(commands)
-    location = ""
-    if "cwd" in kwargs:
-        location = f" in {kwargs['cwd']}"
+    if location := kwargs.get("cwd"):
+        location = f" in {location}"
     print(f"Running command{location}:\n    {command}", flush=True)
     return subprocess.run(commands, **kwargs)
 
