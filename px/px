@@ -1,4 +1,5 @@
 #!/bin/env python3
+import functools
 import json
 import subprocess
 import sys
@@ -15,14 +16,18 @@ def print_help():
     message = """px is a pretalx helper tool, made for pretalx.com
 
 Usage:
-  px status  Show information on the currently running pretalx
-  px run     Run a command with the current pretalx, e.g. px run shell_scoped --override
-  px celery  Run a celery command with the current pretalx, e.g. px celery events, or px celery inspect [active/scheduled]
-  px update  Update to a given git ref, or main, if none was given.
-     --no-plugins  Skips plugin updates
-     --skip-rebuild  Skips the rebuild step
-  px init    Install all configured plugins
-     --system  Install all configured plugins and pretalx itself
+  px status      Show information on the currently active pretalx
+  px restart     Restart the currently active pretalx
+  px start       Start the currently active pretalx
+  px stop        Stop the currently active pretalx
+  px run         Run a command with the current pretalx, e.g. px run shell_scoped --override
+  px celery      Run a celery command with the current pretalx, e.g. px celery events, or px celery inspect [active/scheduled]
+  px update      Update to a given git ref, or main, if none was given.
+       --no-plugins  Skips plugin updates
+       --skip-rebuild  Skips the rebuild step
+  px init        Install all configured plugins
+       --system  Install all configured plugins and pretalx itself
+  px autoupdate  Check for a newer commit with a passing build, and update to it if found
 """
     print(message)
 
@@ -72,10 +77,31 @@ def save_config(*, config):
         json.dump(config, f, indent=4)
 
 
+def format_value(value):
+    if isinstance(value, list):
+        return ", ".join([format_value(v) for v in value])
+    if isinstance(value, dict):
+        return ", ".join([f"{k}: {format_value(v)}" for k, v in value.items()])
+    return str(value)
+
+
 def status(*, args):
+    print("========== Current config ==========")
     config = get_config()
-    for key, value in config.items():
-        print(f"{key}: {value}")
+    print(format_value(config))
+    print("========== Current status ==========")
+    systemd_pretalx("status")
+
+
+def systemd_run(action, service, cwd=None):
+    return subprocess_run(["sudo", "systemctl", action, service], check=True, cwd=cwd)
+
+
+def systemd_pretalx(command):
+    config = get_config()
+    current_venv = config["current"]
+    systemd_run(command, f"pretalx@{current_venv}.service")
+    systemd_run(command, f"pretalx-worker@{current_venv}.service")
 
 
 def _run_venv_command(args, env=None, config=None, chdir=True):
@@ -213,48 +239,16 @@ def update(*, args):
     else:
         print("Skipping static file rebuild …")
     print("Stopping old celery worker …")
-    subprocess_run(
-        ["sudo", "systemctl", "stop", f"pretalx-worker@{current_venv}.service"],
-        check=True,
-        cwd=cwd,
-    )
-    subprocess_run(
-        ["sudo", "systemctl", "disable", f"pretalx-worker@{current_venv}.service"],
-        check=True,
-        cwd=cwd,
-    )
+    systemd_run("stop", f"pretalx-worker@{current_venv}.service")
+    systemd_run("disable", f"pretalx-worker@{current_venv}.service")
     print("Starting new celery worker …")
-    subprocess_run(
-        ["sudo", "systemctl", "start", f"pretalx-worker@{next_venv}.service"],
-        check=True,
-        cwd=cwd,
-    )
-    subprocess_run(
-        ["sudo", "systemctl", "enable", f"pretalx-worker@{next_venv}.service"],
-        check=True,
-        cwd=cwd,
-    )
+    systemd_run("start", f"pretalx-worker@{next_venv}.service")
+    systemd_run("enable", f"pretalx-worker@{next_venv}.service")
     print("Starting new pretalx process …")
-    subprocess_run(
-        ["sudo", "systemctl", "start", f"pretalx@{next_venv}.service"],
-        check=True,
-        cwd=cwd,
-    )
-    subprocess_run(
-        ["sudo", "systemctl", "start", f"pretalx@{next_venv}.socket"],
-        check=True,
-        cwd=cwd,
-    )
-    subprocess_run(
-        ["sudo", "systemctl", "enable", f"pretalx@{next_venv}.service"],
-        check=True,
-        cwd=cwd,
-    )
-    subprocess_run(
-        ["sudo", "systemctl", "enable", f"pretalx@{next_venv}.socket"],
-        check=True,
-        cwd=cwd,
-    )
+    systemd_run("start", f"pretalx@{next_venv}.service")
+    systemd_run("start", f"pretalx@{next_venv}.socket")
+    systemd_run("enable", f"pretalx@{next_venv}.service")
+    systemd_run("enable", f"pretalx@{next_venv}.socket")
     print("Changing caddy config …")
     subprocess_run(
         ["sudo", "sed", "-i", f"s/{current_venv}/{next_venv}/g", CADDY],
@@ -263,34 +257,18 @@ def update(*, args):
     )
     print("Reloading caddy …")
     try:
-        subprocess_run(["sudo", "systemctl", "reload", "caddy"], check=True, cwd=cwd)
+        systemd_run("reload", "caddy", cwd=cwd)
     except Exception:
         # Try a second time, then restart, then give up
         try:
-            subprocess_run(["sudo", "systemctl", "reload", "caddy"], check=True, cwd=cwd)
+            systemd_run("reload", "caddy", cwd=cwd)
         except Exception:
-            subprocess_run(["sudo", "systemctl", "restart", "caddy"], check=True, cwd=cwd)
+            systemd_run("restart", "caddy", cwd=cwd)
     print("Stopping old pretalx process …")
-    subprocess_run(
-        ["sudo", "systemctl", "stop", f"pretalx@{current_venv}.service"],
-        check=True,
-        cwd=cwd,
-    )
-    subprocess_run(
-        ["sudo", "systemctl", "stop", f"pretalx@{current_venv}.socket"],
-        check=True,
-        cwd=cwd,
-    )
-    subprocess_run(
-        ["sudo", "systemctl", "disable", f"pretalx@{current_venv}.socket"],
-        check=True,
-        cwd=cwd,
-    )
-    subprocess_run(
-        ["sudo", "systemctl", "disable", f"pretalx@{current_venv}.service"],
-        check=True,
-        cwd=cwd,
-    )
+    systemd_run("stop", f"pretalx@{current_venv}.service")
+    systemd_run("stop", f"pretalx@{current_venv}.socket")
+    systemd_run("disable", f"pretalx@{current_venv}.service")
+    systemd_run("disable", f"pretalx@{current_venv}.socket")
 
     config["current"] = next_venv
     config["version"] = version
@@ -374,6 +352,9 @@ def main():
 
     commands = {
         "status": status,
+        "restart": functools.partial(systemd_pretalx, "restart"),
+        "start": functools.partial(systemd_pretalx, "start"),
+        "stop": functools.partial(systemd_pretalx, "stop"),
         "run": pretalx_run,
         "celery": celery_run,
         "update": update,
