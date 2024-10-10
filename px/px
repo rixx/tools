@@ -97,7 +97,7 @@ def systemd_run(action, service, cwd=None):
     return subprocess_run(["sudo", "systemctl", action, service], check=True, cwd=cwd)
 
 
-def systemd_pretalx(command, *, args):
+def systemd_pretalx(command, *, args=None):
     config = get_config()
     current_venv = config["current"]
     systemd_run(command, f"pretalx@{current_venv}.service")
