@@ -75,7 +75,7 @@ class Ticket:
             "token": config["pushover"]["app"],
             "user": config["pushover"]["user"],
             "title": limit_length(title, 250),
-            "message": limit_length(cut_quote(self.body), 1024),
+            "message": limit_length(cut_quote(cut_signature((self.body))), 1024),
             "url": f"{config['zammad']['url']}/#ticket/zoom/{self.ticket_id}",
             "url_title": "Go to ticket",
             "sound": "none",
@@ -126,6 +126,13 @@ def limit_length(text, length):
     if len(text) <= length:
         return text
     return text[: length - 2] + "…"
+
+
+def cut_signature(text):
+    signature_marker = "-- \n"
+    if not text or signature_marker not in text:
+        return text
+    return text.split(signature_marker, maxsplit=1)[0]
 
 
 def cut_quote(text):
