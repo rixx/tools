@@ -107,15 +107,21 @@ class Entry:
             for key, value in config["context_detail"].items():
                 value = value.strip('"')
                 try:
-                    context[key] = get_value(detail_html, value, multiple=key.endswith("list"))
+                    context[key] = get_value(
+                        detail_html, value, multiple=key.endswith("list")
+                    )
                 except Exception:
                     print(f"Could not get {value} from detail HTML")
 
         payload = {
             "token": config["pushover"]["app"],
             "user": config["pushover"]["user"],
-            "title": limit_length(self.render_template(config["templates"]["subject"], context), 250),
-            "message": limit_length(self.render_template(config["templates"]["message"], context), 1024),
+            "title": limit_length(
+                self.render_template(config["templates"]["subject"], context), 250
+            ),
+            "message": limit_length(
+                self.render_template(config["templates"]["message"], context), 1024
+            ),
             "url": self.detail_url or config["website"]["url"],
             "url_title": "Go to website",
             "sound": "none",
@@ -140,6 +146,7 @@ def write_seen_ids(ids):
     content = "\n".join(str(element) for element in ids)
     with open("./seen_ids", "w") as seen_file:
         seen_file.write(content)
+
 
 def get_entries():
     response = requests.get(config["website"]["url"])
