@@ -42,7 +42,11 @@ def get_value(html, query, multiple=False):
     if attribute:
         elements = [element.get(attribute) for element in elements if element]
     else:
-        elements = [element.text.strip() for element in elements if element]
+        elements = [
+            " ".join(string for string in element.stripped_strings)
+            for element in elements
+            if element
+        ]
     return "\n".join(elements)
 
 
