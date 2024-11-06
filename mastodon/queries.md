@@ -1,4 +1,4 @@
-# Queries you might need on your Mastodon server
+# Queries and other tools you might need on your Mastodon server
 
 ## Don't allow unlimited invites
 
@@ -169,4 +169,15 @@ GROUP BY
   moved.domain
 ORDER BY
   count DESC;
+```
+
+# Refresh broken avatar
+
+```bash
+cd ~/live
+RAILS_ENV=production bundle exec rails c
+a = Account.find_remote('USERNAME', 'REMOTE.DOMAIN')
+a.reset_avatar!
+a.reset_header!
+a.save
 ```
