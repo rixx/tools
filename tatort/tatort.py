@@ -135,19 +135,21 @@ def get_episode_by_title(title, include_existing=True, noinput=False):
     if not matches:
         return
 
+    exact_matches = [e for e in matches if normalize_title(e["titel"]) == title]
+
     if not include_existing:
-        exact_matches = [e for e in matches if normalize_title(e["titel"]) == title]
-        # Collect all episodes that are exact matches. If all of them exist, we don't need to continue.
+        # If there are exact matches and all of them exist, we don't need to continue.
         if exact_matches and all(find_episode(e["episode"]) for e in exact_matches):
             return
-        # Continue with only non-downloaded episodes
-        matches = [
-            e
-            for e in matches
-            if e not in exact_matches and not find_episode(e["episode"])
-        ]
-        if not matches:
-            return
+
+        # If there is only one exact match, we can use that.
+        if len(exact_matches) == 1 and exact_matches[0] in missing_matches:
+            matches = exact_matches
+        else:
+            # Continue with only non-downloaded episodes
+            matches = [e for e in matches if not find_episode(e["episode"])]
+            if not matches:
+                return
 
     if len(matches) == 1:
         result = matches[0]
