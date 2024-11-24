@@ -108,7 +108,7 @@ def normalize_title(title):
     return title.strip()
 
 
-def get_episode_by_title(title, include_existing=True):
+def get_episode_by_title(title, include_existing=True, noinput=False):
     title = normalize_title(title)
     slug = slugify(title)
     if slug in KNOWN_BAD:
@@ -151,6 +151,8 @@ def get_episode_by_title(title, include_existing=True):
 
     if len(matches) == 1:
         result = matches[0]
+    elif noinput:
+        return
     else:
         exact_matches = [e for e in matches if e["slug"] == slug]
         if len(exact_matches) == 1:
@@ -215,7 +217,7 @@ def download():
             handle_download(url)
 
 
-def bulk_download():
+def bulk_download(noinput=False):
     print("Welcome to the Tatort bulk downloader.")
     global EPISODES, OFFSET
     EPISODES = load_csv()
@@ -250,7 +252,9 @@ def bulk_download():
             if title in seen:
                 continue
             seen.add(title)
-            episode = get_episode_by_title(title, include_existing=False)
+            episode = get_episode_by_title(
+                title, include_existing=False, noinput=noinput
+            )
             if not episode:
                 continue
             filename = get_episode_filename(episode)
@@ -323,7 +327,7 @@ if __name__ == "__main__":
         check_youtube_dl()
         while True:
             try:
-                bulk_download()
+                bulk_download(noinput="--noinput" in sys.argv)
                 break
             except Exception:
                 print(f"Failure, increasing offset to {OFFSET + 1}")
@@ -332,5 +336,5 @@ if __name__ == "__main__":
         watch()
     else:
         print(
-            "Call script with 'update_csv', 'download' (with a link or without to enter interactive mode), 'bulk' or 'watch'"
+            "Call script with 'update_csv', 'download' (with a link or without to enter interactive mode), 'bulk [--noinput]' or 'watch'"
         )
