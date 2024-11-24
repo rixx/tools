@@ -28,9 +28,9 @@ OFFSET = int(os.environ.get("OFFSET") or 0)
 
 def check_youtube_dl():
     try:
-        subprocess.check_output(["youtube-dl", "--version"])
+        subprocess.check_output(["yt-dlp", "--version"])
     except FileNotFoundError:
-        print("youtube-dl not found. Please install it.")
+        print("yt-dlp not found. Please install it.")
         sys.exit(1)
 
 
@@ -196,7 +196,7 @@ def handle_download(url, title=None):
         return
     filename = get_episode_filename(episode)
     print(f"Downloading episode {episode['episode']}: {episode['titel']} to {filename}")
-    subprocess.call(["youtube-dl", "-o", filename, url])
+    subprocess.call(["yt-dlp", "-o", filename, url])
     subprocess.call(["notify-send", f"Finished downloading {episode['titel']}"])
 
 
@@ -264,7 +264,7 @@ def bulk_download():
                 if Path(filename).exists():
                     break
                 with suppress(Exception):
-                    subprocess.call(["youtube-dl", "-o", filename, url])
+                    subprocess.call(["yt-dlp", "-o", filename, url])
                     if not "ERROR: Unable to download webpage" in result:
                         result = subprocess.check_output(
                             ["notify-send", f"Finished downloading {episode['titel']}"]
