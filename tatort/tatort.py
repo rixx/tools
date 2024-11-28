@@ -271,11 +271,10 @@ def bulk_download(noinput=False):
                     break
                 with suppress(Exception):
                     subprocess.call(["yt-dlp", "-o", filename, url])
-                    if not "ERROR: Unable to download webpage" in result:
-                        result = subprocess.check_output(
-                            ["notify-send", f"Finished downloading {episode['titel']}"]
-                        )
-                        break
+                    subprocess.check_output(
+                        ["notify-send", f"Finished downloading {episode['titel']}"]
+                    )
+                    break
             else:
                 print(
                     f"None of the URLs for {episode['episode']} – {episode['titel']} work, skipping."
