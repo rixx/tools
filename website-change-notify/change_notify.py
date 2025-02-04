@@ -23,6 +23,12 @@ IGNORE_TITLE = get_config_list("ignore", "title")
 IGNORE_ID = get_config_list("ignore", "id")
 
 
+class TolerantDict(dict):
+    def __missing__(self, key):
+        """Don't fail when formatting strings with a dict with missing keys."""
+        return "MISSING"
+
+
 def get_value(html, query, multiple=False):
     # Query should be a CSS selector. However, it can include an "[attribute]" part,
     # which will be used to return the attribute value.
@@ -88,7 +94,7 @@ class Entry:
         return True
 
     def render_template(self, template, context):
-        return template.format(**context).strip("\"' \n")
+        return template.format(**TolerantDict(context)).strip("\"' \n")
 
     def send_pushover(self, force=False):
         if not self.should_notify() and not force:
