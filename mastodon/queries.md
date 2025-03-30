@@ -181,3 +181,15 @@ a.reset_avatar!
 a.reset_header!
 a.save
 ```
+
+# Reject all old open appeals
+
+```sql
+UPDATE
+  appeals
+SET
+  rejected_at = now()
+WHERE
+  rejected_at IS NULL
+  AND approved_at IS NULL;
+```
