@@ -46,11 +46,12 @@ class Ticket:
             except Exception:
                 pass
         self.body = body
+        self.pushover_body = limit_length(cut_quote(cut_signature((body))), 1024)
 
     def should_notify(self):
         if set(self.tags) & IGNORE_TAGS:
             return False
-        if not self.body:
+        if not self.pushover_body.strip():
             return False
         for blocked in IGNORE_SUBJECT:
             if blocked in self.subject.lower():
@@ -75,7 +76,7 @@ class Ticket:
             "token": config["pushover"]["app"],
             "user": config["pushover"]["user"],
             "title": limit_length(title, 250),
-            "message": limit_length(cut_quote(cut_signature((self.body))), 1024),
+            "message": self.pushover_body,
             "url": f"{config['zammad']['url']}/#ticket/zoom/{self.ticket_id}",
             "url_title": "Go to ticket",
             "sound": "none",
