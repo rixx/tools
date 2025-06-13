@@ -86,7 +86,12 @@ class Ticket:
             data=json.dumps(payload),
             headers={"Content-Type": "application/json"},
         )
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except Exception as e:
+            print(
+                f"Failed to send message to pushover: {e}, {response.content.decode()}"
+            )
 
 
 def get_seen_ids():
