@@ -22,8 +22,13 @@ KNOWN_BAD = (
     # existiert 2x
     "taxi-nach-leipzig",
     "aus-der-traum",
+    # gold vs goldbach :(
+    "goldbach",
 )
 OFFSET = int(os.environ.get("OFFSET") or 0)
+
+# TODO: mappings
+# 'Es grünt so grün, wenn Frankfurts Berge blühen' (API) -> 'Es grünt so grün, wenn Frankfurts Berge blüh’n' (CSV)
 
 
 def check_youtube_dl():
@@ -105,7 +110,7 @@ def normalize_title(title):
     for substr in leading:
         if substr in title:
             title = title[title.find(substr) + len(substr) :]
-    return title.strip()
+    return title.strip().strip(":")
 
 
 def get_episode_by_title(title, include_existing=True, noinput=False):
@@ -143,7 +148,7 @@ def get_episode_by_title(title, include_existing=True, noinput=False):
             return
 
         # If there is only one exact match, we can use that.
-        if len(exact_matches) == 1 and exact_matches[0] in missing_matches:
+        if len(exact_matches) == 1 and not find_episode(exact_matches[0]["episode"]):
             matches = exact_matches
         else:
             # Continue with only non-downloaded episodes
@@ -302,7 +307,7 @@ def watch():
     watched = get_watched_episodes()
     available = get_available_episodes()
     for episode in sorted(available):
-        if not episode in watched:
+        if episode not in watched:
             break
     path = find_episode(episode)[0]
     global EPISODES
@@ -330,8 +335,9 @@ if __name__ == "__main__":
             try:
                 bulk_download(noinput="--noinput" in sys.argv)
                 break
-            except Exception:
+            except Exception as e:
                 print(f"Failure, increasing offset to {OFFSET + 1}")
+                print(e)
                 OFFSET += 1
     elif arg == "watch":
         watch()
