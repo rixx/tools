@@ -1,3 +1,4 @@
+import time
 import datetime as dt
 import json
 import pathlib
@@ -43,6 +44,14 @@ def get_tracker(auth_data):
             auth_data["password"],
         ),
     )
+
+def get_ticket_history(ticket_id, rt):
+    for _ in range(5):
+        try:
+            return rt.get_ticket_history(ticket_id)
+        except Exception:
+            print(f"Failed to get ticket history for {ticket_id}")
+            time.sleep(2)
 
 
 @click.group()
@@ -123,7 +132,9 @@ def stats(queue, auth, ignore_users, users):
 
     for ticket in tqdm(tickets, desc="Tickets", total=float("inf")):
         total += 1
-        history = rt.get_ticket_history(ticket["id"])
+        history = get_ticket_history(ticket["id"], rt)
+        if not history:
+            print(f"Giving up on this ticket, continuing without")
         response_time = None
         track_response_time = True
         for transaction in history:
