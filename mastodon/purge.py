@@ -1,3 +1,12 @@
+#!/usr/bin/env -S uv run
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#     "mastodon.py",
+#     "beautifulsoup4",
+#     "inquirer",
+# ]
+# ///
 import subprocess
 import textwrap
 
