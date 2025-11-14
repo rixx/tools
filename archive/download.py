@@ -1,3 +1,8 @@
+#!/usr/bin/env -S uv run
+# /// script
+# requires-python = ">=3.10"
+# dependencies = []
+# ///
 """
 How to use:
 - take a book out for a loan (1h)
