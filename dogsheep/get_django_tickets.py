@@ -1,3 +1,11 @@
+#!/usr/bin/env -S uv run
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#     "requests",
+#     "tqdm",
+# ]
+# ///
 import json
 import sqlite3
 from datetime import datetime
