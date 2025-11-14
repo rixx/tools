@@ -1,4 +1,11 @@
-#!/bin/python3
+#!/usr/bin/env -S uv run
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#     "beautifulsoup4",
+#     "requests",
+# ]
+# ///
 import configparser
 import datetime as dt
 import json
