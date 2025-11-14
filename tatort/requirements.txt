@@ -1,4 +1,0 @@
-inquirer
-beautifulsoup4
-requests
-openpyxl

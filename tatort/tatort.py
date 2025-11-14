@@ -1,3 +1,13 @@
+#!/usr/bin/env -S uv run
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#     "inquirer",
+#     "beautifulsoup4",
+#     "requests",
+#     "openpyxl",
+# ]
+# ///
 import csv
 import json
 import os
