@@ -1,3 +1,8 @@
+#!/usr/bin/env -S uv run
+# /// script
+# requires-python = ">=3.10"
+# dependencies = []
+# ///
 MYLA = ["Mound", "Greenpath", "Dash", "Claw", "Blue Lake", "Sly", "Cdash"]
 
 TE = ["Mound", "Greenpath", "Dash", "Blue Lake", "Elder Hu", "Claw", "Glade", "Gorgeous Husk", "Lantern", "Cdash", "Shade Soul", "Lurien", "BV", "LK", "FC", "Hornet", "Shade Cloak", "Markoth", "Gorb", "Monomon", "No Eyes", "Marmu", "TL", "Galien", "Herrah", "WP Entrance", "WP Exit", "Void Heart", "Black Egg", "THK"]
