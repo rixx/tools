@@ -1,4 +1,0 @@
-mastodon.py
-bs4
-inquirer
-tqdm
