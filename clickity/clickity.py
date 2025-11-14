@@ -1,3 +1,10 @@
+#!/usr/bin/env -S uv run
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#     "requests",
+# ]
+# ///
 from datetime import datetime, timedelta
 from itertools import repeat
 import random
