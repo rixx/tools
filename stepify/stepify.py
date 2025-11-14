@@ -1,3 +1,11 @@
+#!/usr/bin/env -S uv run
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#     "spotipy",
+#     "sqlite-utils",
+# ]
+# ///
 import json
 import os
 import sys
