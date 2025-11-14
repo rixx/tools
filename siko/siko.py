@@ -1,3 +1,11 @@
+#!/usr/bin/env -S uv run
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#     "pandas",
+#     "xlrd",
+# ]
+# ///
 import csv
 import sys
 from io import StringIO
