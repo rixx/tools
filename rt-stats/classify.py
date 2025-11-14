@@ -1,3 +1,13 @@
+#!/usr/bin/env -S uv run
+# /// script
+# dependencies = [
+#   "click",
+#   "httpx",
+#   "rt",
+#   "tqdm",
+# ]
+# ///
+
 import time
 import datetime as dt
 import json
