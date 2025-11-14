@@ -1,4 +1,11 @@
-#!/bin/python3
+#!/usr/bin/env -S uv run
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#     "lz4",
+#     "requests",
+# ]
+# ///
 import copy
 import datetime as dt
 from pathlib import Path
