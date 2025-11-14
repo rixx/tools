@@ -1,3 +1,13 @@
+#!/usr/bin/env -S uv run
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#     "click",
+#     "requests",
+#     "urllib3",
+#     "tqdm",
+# ]
+# ///
 """
 Takes a list of domains, and adds tracking to their status. Checks if
 - there are DNS entries
