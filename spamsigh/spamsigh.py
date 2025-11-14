@@ -1,3 +1,8 @@
+#!/usr/bin/env -S uv run
+# /// script
+# requires-python = ">=3.10"
+# dependencies = []
+# ///
 import base64
 import html
 import subprocess
