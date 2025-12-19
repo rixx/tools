@@ -285,10 +285,15 @@ def ticket_has_been_modified(ticket_id, tracker):
     is_flag=True,
     help="Don't actually move tickets, just show what would be moved.",
 )
+@click.option(
+    "--silent",
+    is_flag=True,
+    help="Suppress all output.",
+)
 @click.argument("source")
 @click.argument("destination")
 @click.argument("subject_pattern")
-def automove(auth, dry_run, source, destination, subject_pattern):
+def automove(auth, dry_run, silent, source, destination, subject_pattern):
     """Move tickets from SOURCE queue to DESTINATION queue.
 
     Moves all 'new' or 'open' tickets that do NOT match SUBJECT_PATTERN.
@@ -322,7 +327,7 @@ def automove(auth, dry_run, source, destination, subject_pattern):
     skipped_pattern = 0
     skipped_modified = 0
 
-    for ticket in tqdm(tickets, desc="Processing tickets"):
+    for ticket in tqdm(tickets, desc="Processing tickets", disable=silent):
         subject = ticket.get("Subject", "")
 
         # Skip tickets that match the pattern
@@ -341,16 +346,19 @@ def automove(auth, dry_run, source, destination, subject_pattern):
         else:
             try:
                 tracker.edit_ticket(ticket["id"], Queue=dest_name)
-                click.echo(f"Moved ticket #{ticket['id']}: {subject}")
+                if not silent:
+                    click.echo(f"Moved ticket #{ticket['id']}: {subject}")
             except Exception as e:
-                click.echo(f"Failed to move ticket #{ticket['id']}: {e}")
+                if not silent:
+                    click.echo(f"Failed to move ticket #{ticket['id']}: {e}")
                 continue
         moved += 1
 
-    click.echo()
-    click.echo(f"{'Would move' if dry_run else 'Moved'}: {moved}")
-    click.echo(f"Skipped (matched pattern): {skipped_pattern}")
-    click.echo(f"Skipped (already active): {skipped_modified}")
+    if not silent:
+        click.echo()
+        click.echo(f"{'Would move' if dry_run else 'Moved'}: {moved}")
+        click.echo(f"Skipped (matched pattern): {skipped_pattern}")
+        click.echo(f"Skipped (already active): {skipped_modified}")
 
 
 if __name__ == "__main__":
