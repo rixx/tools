@@ -17,8 +17,9 @@ from pathlib import Path
 
 import click
 import httpx
-import rt.rest2
 from tqdm import tqdm
+
+import rt.rest2
 
 # --- Utilities ---
 

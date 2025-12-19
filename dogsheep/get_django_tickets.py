@@ -147,7 +147,9 @@ def main():
     connection = sqlite3.connect("django_tickets.db")
     create_db(connection=connection)
     cursor = connection.cursor()
-    result = cursor.execute("SELECT id FROM tickets ORDER BY id DESC LIMIT 1").fetchone()
+    result = cursor.execute(
+        "SELECT id FROM tickets ORDER BY id DESC LIMIT 1"
+    ).fetchone()
     start = result[0] if result else 0
     collect_data(connection=connection, start=start)
 

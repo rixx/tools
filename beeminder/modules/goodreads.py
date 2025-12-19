@@ -1,5 +1,6 @@
-import requests
 import xml.etree.ElementTree as ET
+
+import requests
 
 from .utils import needs_update
 
@@ -23,6 +24,5 @@ def get_current_book_count(config):
 def handle_goodreads(config, original_value):
     book_count = get_current_book_count(config)
     mode = config.get("goal:goodreads", "mode")
-    goal = config.get("goal:goodreads", "goal")
     if needs_update(book_count, original_value, mode):
         return book_count

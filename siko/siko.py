@@ -9,12 +9,27 @@
 import csv
 import sys
 from io import StringIO
-from tkinter import *
-from tkinter import ttk
-from tkinter import font
+from tkinter import (
+    BOTTOM,
+    GROOVE,
+    LEFT,
+    RIGHT,
+    VERTICAL,
+    Canvas,
+    E,
+    Frame,
+    N,
+    Scrollbar,
+    StringVar,
+    Tk,
+    W,
+    X,
+    Y,
+    font,
+    ttk,
+)
 
 import pandas
-
 
 root = Tk()
 w, h = root.winfo_screenwidth(), root.winfo_screenheight()
@@ -218,7 +233,7 @@ state_deviation = states[4]
 
 
 def switch_to_next():
-    global current_index, current, has_risk
+    global current_index, current
     current_index += 1
     if current_index >= len(data):
         raise Exception("Out of bounds")

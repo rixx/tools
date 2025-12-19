@@ -26,9 +26,9 @@ import click
 )
 def send(source, address, number, subject, template):
     """Simple program that greets NAME for a total of COUNT times."""
-    l = [element.strip() for element in list(source)]
-    l = [element for element in l if element and not element.startswith("#")]
-    selection = "\n".join(random.sample(l, number))
+    line = [element.strip() for element in list(source)]
+    line = [element for element in line if element and not element.startswith("#")]
+    selection = "\n".join(random.sample(line, number))
     if template:
         template = "".join(template)
     else:

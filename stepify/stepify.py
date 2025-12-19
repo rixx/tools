@@ -152,10 +152,5 @@ def main():
     print(f"Total songs in playlist: {known_songs}")
 
 
-# dict_keys(['album', 'artists', 'available_markets', 'disc_number', 'duration_ms', 'episode', 'explicit', 'external_ids', 'external_urls', 'href', 'id', 'is_local', 'name', 'popularity', 'preview_url', 'track', 'track_number', 'type', 'uri'])
-# dict_keys(['album_type', 'artists', 'available_markets', 'external_urls', 'href', 'id', 'images', 'name', 'release_date', 'release_date_precision', 'total_tracks', 'type', 'uri'])
-# dict_keys(['external_urls', 'href', 'id', 'name', 'type', 'uri'])
-
-
 if __name__ == "__main__":
     main()

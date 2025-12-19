@@ -9,7 +9,6 @@
 import configparser
 import json
 from contextlib import suppress
-from functools import cached_property
 
 import requests
 from bs4 import BeautifulSoup

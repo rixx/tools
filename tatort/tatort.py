@@ -105,7 +105,7 @@ def load_csv():
         update_csv()
     with open(CSV_PATH, "r") as fp:
         reader = csv.DictReader(fp)
-        data = [l for l in reader]
+        data = list(reader)
     for entry in data:
         entry["slug"] = slugify(entry["titel"])
     return data
@@ -211,7 +211,7 @@ def get_episode_filename(episode):
 def handle_download(url, title=None):
     episode = get_episode(url, title=title, include_existing=False)
     if not episode:
-        print(f"Episode not found or exists already on disk.")
+        print("Episode not found or exists already on disk.")
         return
     filename = get_episode_filename(episode)
     print(f"Downloading episode {episode['episode']}: {episode['titel']} to {filename}")

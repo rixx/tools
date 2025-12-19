@@ -5,12 +5,13 @@
 #     "requests",
 # ]
 # ///
-from datetime import datetime, timedelta
-from itertools import repeat
 import random
-import requests
 import sys
 import time
+from datetime import datetime, timedelta
+from itertools import repeat
+
+import requests
 
 START_DATE = datetime.now()
 TOTAL = 3241

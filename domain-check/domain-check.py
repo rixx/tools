@@ -28,7 +28,6 @@ import requests
 import urllib3
 from tqdm import tqdm
 
-
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
@@ -142,7 +141,7 @@ def check_domain(data):
     data["has_dns6"] = False
     try:
         response = socket.getaddrinfo(domain, 80)
-    except:
+    except Exception:
         data["has_http"] = False
         data["has_ssl"] = False
         data["valid_ssl"] = False
@@ -162,7 +161,7 @@ def check_domain(data):
         response.raise_for_status()
         data["has_http"] = True
         data["last_seen"] = dt.datetime.now()
-    except:
+    except Exception:
         data["has_http"] = False
         data["has_ssl"] = False
         data["valid_ssl"] = False

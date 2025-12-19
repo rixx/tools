@@ -1,7 +1,7 @@
 import configparser
 import datetime as dt
-from contextlib import suppress
 import json
+from contextlib import suppress
 
 import requests
 

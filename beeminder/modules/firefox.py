@@ -1,6 +1,7 @@
 import glob
-from pathlib import Path
 import json
+from pathlib import Path
+
 import lz4.block
 
 from .utils import needs_update
@@ -56,6 +57,5 @@ def get_current_tab_count(config):
 def handle_firefox(config, original_value):
     tab_count = get_current_tab_count(config)
     mode = config.get("goal:firefox", "mode")
-    goal = config.get("goal:firefox", "goal")
     if needs_update(tab_count, original_value, mode):
         return tab_count
