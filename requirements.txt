@@ -1,5 +1,0 @@
-ipython
-pudb
-black
-flake8
-isort
