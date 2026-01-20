@@ -14,6 +14,7 @@
 import json
 import re
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -32,6 +33,200 @@ INDEX_FILE = BASE_DIR / "index.md"
 
 ORANGE = (255, 165, 0)
 BLUE = (0, 150, 214)
+
+
+@dataclass
+class Episode:
+    """Unified episode data model."""
+    title: str
+    year: str = ""  # Original broadcast year (used for filename)
+    presenter: str = ""
+    duration: str = ""
+    description: str = ""
+    url: str = ""
+    alt_url: str = ""  # @id field
+    image_url: str = ""
+    date_published: str = ""  # Metadata publication date
+
+    @property
+    def slug(self) -> str:
+        return get_slug(self.title, self.year)
+
+    @property
+    def video_path(self) -> Path:
+        return SACHGESCHICHTEN_DIR / f"{self.slug}.mp4"
+
+    @property
+    def image_path(self) -> Path:
+        return SACHGESCHICHTEN_DIR / f"{self.slug}.webp"
+
+    @property
+    def is_downloaded(self) -> bool:
+        return self.video_path.exists()
+
+    def has_valid_duration(self) -> bool:
+        return self.duration not in (None, "", "NA")
+
+    @classmethod
+    def from_metadata(cls, metadata: dict) -> "Episode":
+        """Construct from JSON-LD metadata dict."""
+        date_str = metadata.get("datePublished", "")
+        image_url = (metadata.get("image", {}).get("url") or
+                     (metadata.get("thumbnailURL", []) or [None])[0] or "")
+        # Prefer originalYear (broadcast year) over datePublished year
+        year = metadata.get("originalYear") or (date_str[:4] if date_str else "")
+        return cls(
+            title=metadata.get("name", ""),
+            year=year,
+            presenter=metadata.get("presenter", ""),
+            duration=metadata.get("duration", ""),
+            description=metadata.get("description", ""),
+            url=metadata.get("url", ""),
+            alt_url=metadata.get("@id", ""),
+            image_url=image_url,
+            date_published=date_str,
+        )
+
+    @classmethod
+    def from_missing(cls, entry: dict) -> "Episode":
+        """Construct from missing entry dict."""
+        return cls(
+            title=entry.get("title", ""),
+            year=entry.get("year", ""),
+            presenter=entry.get("presenter", ""),
+        )
+
+    def to_metadata_dict(self) -> dict:
+        """Convert to metadata dict format for JSON storage."""
+        result = {"name": self.title}
+        if self.date_published:
+            result["datePublished"] = self.date_published
+        # Always save originalYear if it differs from datePublished year
+        if self.year and (not self.date_published or self.year != self.date_published[:4]):
+            result["originalYear"] = self.year
+        if self.description:
+            result["description"] = self.description
+        if self.presenter:
+            result["presenter"] = self.presenter
+        if self.duration:
+            result["duration"] = self.duration
+        if self.url:
+            result["url"] = self.url
+        if self.alt_url:
+            result["@id"] = self.alt_url
+        if self.image_url:
+            result["image"] = {"url": self.image_url}
+        return result
+
+    def to_missing_dict(self) -> dict:
+        """Convert to missing entry dict format."""
+        result = {"title": self.title, "year": self.year}
+        if self.presenter:
+            result["presenter"] = self.presenter
+        return result
+
+    def merge_from(self, other: "Episode"):
+        """Merge non-empty fields from another episode."""
+        if not self.presenter and other.presenter:
+            self.presenter = other.presenter
+        if not self.has_valid_duration() and other.has_valid_duration():
+            self.duration = other.duration
+        # Prefer other's year if we only have date_published year
+        if other.year and self.date_published and self.year == self.date_published[:4]:
+            if other.year != self.year:
+                self.year = other.year
+
+
+class EpisodeRepository:
+    """Manages episode data with slug-based indexing."""
+
+    def __init__(self):
+        self._downloaded: dict[str, Episode] = {}
+        self._missing: dict[str, Episode] = {}
+        self._downloaded_urls: set[str] = set()  # Normalized URLs for quick lookup
+        self.reload()
+
+    @staticmethod
+    def _normalize_url(url: str) -> str:
+        """Normalize URL for comparison."""
+        if not url:
+            return ""
+        return url.replace("//filme", "/filme").rstrip("/").lower()
+
+    def reload(self):
+        self._downloaded.clear()
+        self._missing.clear()
+        self._downloaded_urls.clear()
+        if JSON_FILE.exists():
+            for entry in json.loads(JSON_FILE.read_text()):
+                ep = Episode.from_metadata(entry)
+                self._downloaded[ep.slug] = ep
+                # Index by URL for bulk matching
+                if ep.url:
+                    self._downloaded_urls.add(self._normalize_url(ep.url))
+                if ep.alt_url:
+                    self._downloaded_urls.add(self._normalize_url(ep.alt_url))
+        if MISSING_FILE.exists():
+            for entry in json.loads(MISSING_FILE.read_text()):
+                ep = Episode.from_missing(entry)
+                self._missing[ep.slug] = ep
+
+    def is_url_downloaded(self, url: str) -> bool:
+        """Check if a URL is already in the downloaded list."""
+        return self._normalize_url(url) in self._downloaded_urls
+
+    def get_by_url(self, url: str) -> Episode | None:
+        """Get episode by URL."""
+        normalized = self._normalize_url(url)
+        for ep in self._downloaded.values():
+            if self._normalize_url(ep.url) == normalized or self._normalize_url(ep.alt_url) == normalized:
+                return ep
+        return None
+
+    def save(self):
+        entries = sorted([ep.to_metadata_dict() for ep in self._downloaded.values()],
+                        key=lambda x: x.get("name", "").lower())
+        JSON_FILE.write_text(json.dumps(entries, indent=2, ensure_ascii=False))
+
+        missing = sorted([ep.to_missing_dict() for ep in self._missing.values()],
+                        key=lambda x: x.get("title", "").lower())
+        MISSING_FILE.write_text(json.dumps(missing, indent=2, ensure_ascii=False))
+
+    def get_by_slug(self, slug: str) -> Episode | None:
+        return self._downloaded.get(slug) or self._missing.get(slug)
+
+    def get_presenter(self, slug: str) -> str:
+        ep = self.get_by_slug(slug)
+        return ep.presenter if ep else ""
+
+    def upsert_downloaded(self, episode: Episode):
+        existing = self._downloaded.get(episode.slug)
+        if existing:
+            episode.merge_from(existing)
+        missing_ep = self._missing.get(episode.slug)
+        if missing_ep:
+            episode.merge_from(missing_ep)
+        self._downloaded[episode.slug] = episode
+
+    def remove_from_missing(self, slug: str):
+        self._missing.pop(slug, None)
+
+    def add_to_missing(self, episode: Episode) -> bool:
+        """Add episode to missing list. Returns True only if newly added."""
+        if episode.slug in self._downloaded:
+            return False
+        existing = self._missing.get(episode.slug)
+        if existing:
+            existing.merge_from(episode)
+            return False  # Already existed, just merged
+        self._missing[episode.slug] = episode
+        return True  # Newly added
+
+    def get_all_downloaded(self) -> list[Episode]:
+        return list(self._downloaded.values())
+
+    def get_all_missing(self) -> list[Episode]:
+        return list(self._missing.values())
 
 
 def info(msg: str):
@@ -218,90 +413,6 @@ def download_image(url: str, output_path: Path):
     temp_path.unlink()
 
 
-def load_json() -> list:
-    """Load existing JSON data."""
-    if JSON_FILE.exists():
-        with open(JSON_FILE) as f:
-            return json.load(f)
-    return []
-
-
-def save_json(data: list):
-    """Save JSON data, sorted by title."""
-    sorted_data = sorted(data, key=lambda x: x.get("name", "").lower())
-    with open(JSON_FILE, "w") as f:
-        json.dump(sorted_data, f, indent=2, ensure_ascii=False)
-
-
-def upsert_entry(metadata: dict):
-    """Add or update an entry in the JSON data by slug (title+year), preserving local fields."""
-    entries = load_json()
-    title = metadata.get("name", "")
-    year = get_year(metadata)
-    new_slug = get_slug(title, year)
-
-    # Find existing entry by slug and preserve local fields (presenter, duration)
-    existing = None
-    for e in entries:
-        entry_slug = get_slug(e.get("name", ""), get_year(e))
-        if entry_slug == new_slug:
-            existing = e
-            break
-
-    # Preserve presenter and duration from existing entry if not in new metadata
-    if existing:
-        if not metadata.get("presenter") and existing.get("presenter"):
-            metadata["presenter"] = existing["presenter"]
-        if not metadata.get("duration") and existing.get("duration"):
-            metadata["duration"] = existing["duration"]
-
-    # Also check missing list for presenter if still not set
-    if not metadata.get("presenter"):
-        missing = load_missing()
-        for m in missing:
-            if m.get("title", "").lower() == title.lower():
-                if m.get("presenter"):
-                    metadata["presenter"] = m["presenter"]
-                break
-
-    # Remove existing entry with same slug
-    entries = [e for e in entries if get_slug(e.get("name", ""), get_year(e)) != new_slug]
-
-    # Add new entry
-    entries.append(metadata)
-    save_json(entries)
-    return entries
-
-
-def is_already_downloaded(title: str, year: str = "") -> bool:
-    """Check if an episode is already downloaded (file exists)."""
-    slug = get_slug(title, year)
-    video_path = SACHGESCHICHTEN_DIR / f"{slug}.mp4"
-    return video_path.exists()
-
-
-def load_missing() -> list:
-    """Load missing episodes list."""
-    if MISSING_FILE.exists():
-        with open(MISSING_FILE) as f:
-            return json.load(f)
-    return []
-
-
-def save_missing(data: list):
-    """Save missing episodes list, sorted by title."""
-    sorted_data = sorted(data, key=lambda x: x.get("title", "").lower())
-    with open(MISSING_FILE, "w") as f:
-        json.dump(sorted_data, f, indent=2, ensure_ascii=False)
-
-
-def remove_from_missing(title: str):
-    """Remove an entry from missing list by title."""
-    missing = load_missing()
-    missing = [m for m in missing if m.get("title", "").lower() != title.lower()]
-    save_missing(missing)
-
-
 def build_table(headers: list, data: list) -> str:
     """Build a markdown table with proper alignment."""
     if not data:
@@ -327,31 +438,22 @@ def build_table(headers: list, data: list) -> str:
     return "\n".join(lines)
 
 
-def update_index(entries: list):
+def update_index(repo: EpisodeRepository):
     """Update the markdown tables in index.md (downloaded and missing separately)."""
-    missing = load_missing()
-
     # Build downloaded table
     downloaded_headers = ["Titel", "Jahr", "Autor", "Dauer"]
-    downloaded_data = []
-    for entry in sorted(entries, key=lambda x: x.get("name", "").lower()):
-        downloaded_data.append([
-            entry.get("name", ""),
-            get_year(entry),
-            entry.get("presenter", ""),
-            entry.get("duration", ""),
-        ])
+    downloaded_data = [
+        [ep.title, ep.year, ep.presenter, ep.duration]
+        for ep in sorted(repo.get_all_downloaded(), key=lambda x: x.title.lower())
+    ]
     downloaded_table = build_table(downloaded_headers, downloaded_data)
 
     # Build missing table
     missing_headers = ["Titel", "Jahr", "Autor"]
-    missing_data = []
-    for entry in sorted(missing, key=lambda x: x.get("title", "").lower()):
-        missing_data.append([
-            entry.get("title", ""),
-            entry.get("year", ""),
-            entry.get("presenter", ""),
-        ])
+    missing_data = [
+        [ep.title, ep.year, ep.presenter]
+        for ep in sorted(repo.get_all_missing(), key=lambda x: x.title.lower())
+    ]
     missing_table = build_table(missing_headers, missing_data)
 
     # Read current index.md
@@ -380,39 +482,96 @@ def update_index(entries: list):
     INDEX_FILE.write_text(new_content)
 
 
+def download_episode(
+    url: str,
+    repo: EpisodeRepository,
+    presenter: str = "",
+    interactive: bool = False,
+    original_year: str = "",
+) -> tuple[bool, Episode | None]:
+    """
+    Core download logic. Returns (success, episode).
+    original_year: If provided (from A-Z page), use this instead of metadata year.
+    """
+    metadata = fetch_metadata(url)  # Let exceptions propagate
+    episode = Episode.from_metadata(metadata)
+
+    # Use original broadcast year if provided (from A-Z page)
+    if original_year and original_year != episode.year:
+        episode.year = original_year
+
+    # Already downloaded?
+    if episode.is_downloaded:
+        existing = repo.get_by_slug(episode.slug)
+        if existing:
+            if not existing.has_valid_duration():
+                existing.duration = get_video_duration(episode.video_path)
+                repo.save()
+            return True, existing
+        # File exists but no JSON entry
+        episode.duration = get_video_duration(episode.video_path)
+        if presenter:
+            episode.presenter = presenter
+        repo.upsert_downloaded(episode)
+        repo.remove_from_missing(episode.slug)
+        repo.save()
+        return True, episode
+
+    # Set presenter
+    if presenter:
+        episode.presenter = presenter
+    elif interactive:
+        result = ask_presenter(episode.title, episode.year)
+        if result is None:
+            return False, None  # Cancelled
+        episode.presenter = result
+    else:
+        episode.presenter = repo.get_presenter(episode.slug)
+
+    # Download video
+    episode.duration = download_video(url, episode.video_path)
+
+    # Download image (non-fatal)
+    if episode.image_url:
+        try:
+            download_image(episode.image_url, episode.image_path)
+        except Exception:
+            pass
+
+    # Save
+    repo.upsert_downloaded(episode)
+    repo.remove_from_missing(episode.slug)
+    repo.save()
+
+    return True, episode
+
+
 def process_url(url: str) -> bool:
     """Process a single URL. Returns True on success, False on failure."""
+    repo = EpisodeRepository()
+    episode = None
     try:
-        # Fetch metadata
+        # Fetch metadata for display
         info(f"Lade Metadaten von {url}")
         metadata = fetch_metadata(url)
+        episode = Episode.from_metadata(metadata)
 
-        title = metadata.get("name", "Unbekannt")
-        year = get_year(metadata)
-        description = metadata.get("description", "")
-
-        header(f"{title} ({year})")
-        if description:
-            click.echo(click.style("  ", fg="white") + description[:100] + "...")
+        header(f"{episode.title} ({episode.year})")
+        if episode.description:
+            click.echo(click.style("  ", fg="white") + episode.description[:100] + "...")
         click.echo()
 
         # Check if already downloaded
-        if is_already_downloaded(title, year):
-            info(f"Bereits vorhanden, überspringe Download")
-            # Check if duration is missing and update if needed
-            slug = get_slug(title, year)
-            video_path = SACHGESCHICHTEN_DIR / f"{slug}.mp4"
-            entries = load_json()
-            for entry in entries:
-                if entry.get("name", "").lower() == title.lower():
-                    if entry.get("duration") in (None, "", "NA"):
-                        duration = get_video_duration(video_path)
-                        if duration:
-                            entry["duration"] = duration
-                            save_json(entries)
-                            update_index(entries)
-                            info(f"Dauer ergänzt: {duration}")
-                    break
+        if episode.is_downloaded:
+            info("Bereits vorhanden, überspringe Download")
+            existing = repo.get_by_slug(episode.slug)
+            if existing and not existing.has_valid_duration():
+                duration = get_video_duration(episode.video_path)
+                if duration:
+                    existing.duration = duration
+                    repo.save()
+                    update_index(repo)
+                    info(f"Dauer ergänzt: {duration}")
             return True
 
         # Ask for presenter
@@ -440,41 +599,35 @@ def process_url(url: str) -> bool:
                 return False
             presenter = other_answer["presenter"]
 
-        metadata["presenter"] = presenter
-
-        slug = get_slug(title, year)
-        video_path = SACHGESCHICHTEN_DIR / f"{slug}.mp4"
-        image_path = SACHGESCHICHTEN_DIR / f"{slug}.webp"
+        episode.presenter = presenter
 
         # Download video
-        info(f"Lade Video herunter: {video_path.name}")
-        duration = download_video(url, video_path)
-        metadata["duration"] = duration
-        success(f"Video heruntergeladen ({duration})")
+        info(f"Lade Video herunter: {episode.video_path.name}")
+        episode.duration = download_video(url, episode.video_path)
+        success(f"Video heruntergeladen ({episode.duration})")
 
         # Download image
-        image_url = metadata.get("image", {}).get("url") or (
-            metadata.get("thumbnailURL", [None])[0] if metadata.get("thumbnailURL") else None
-        )
-        if image_url:
-            info(f"Lade Bild herunter: {image_path.name}")
-            download_image(image_url, image_path)
-            success("Bild als WebP gespeichert")
+        if episode.image_url:
+            info(f"Lade Bild herunter: {episode.image_path.name}")
+            try:
+                download_image(episode.image_url, episode.image_path)
+                success("Bild als WebP gespeichert")
+            except Exception:
+                pass
 
-        # Update JSON (upsert to avoid duplicates)
-        entries = upsert_entry(metadata)
+        # Save to repository
+        repo.upsert_downloaded(episode)
+        repo.remove_from_missing(episode.slug)
+        repo.save()
         success("sachgeschichten.json aktualisiert")
 
-        # Remove from missing if present
-        remove_from_missing(title)
-
         # Update index
-        update_index(entries)
+        update_index(repo)
         success("index.md aktualisiert")
 
         click.echo()
         click.echo(click.style("  ══════════════════════════════════════", fg=ORANGE))
-        click.echo(click.style(f"  🐘 Erfolgreich hinzugefügt: {title}", fg=ORANGE, bold=True))
+        click.echo(click.style(f"  🐘 Erfolgreich hinzugefügt: {episode.title}", fg=ORANGE, bold=True))
         click.echo(click.style("  ══════════════════════════════════════", fg=ORANGE))
         click.echo()
 
@@ -489,20 +642,20 @@ def process_url(url: str) -> bool:
     except subprocess.CalledProcessError as e:
         error(f"Video-Download fehlgeschlagen: {e}")
         # Save presenter info to missing list so user doesn't have to re-enter it
-        if metadata.get("presenter"):
-            entry = {"title": title, "year": year, "presenter": metadata["presenter"]}
-            add_to_missing([entry])
+        if episode is not None and episode.presenter:
+            repo.add_to_missing(episode)
+            repo.save()
             info("Moderator für Fehlt-Liste gespeichert")
-            update_index(load_json())
+            update_index(repo)
         return False
     except Exception as e:
         error(f"Unerwarteter Fehler: {e}")
         # Save presenter info to missing list so user doesn't have to re-enter it
-        if 'metadata' in locals() and metadata.get("presenter"):
-            entry = {"title": metadata.get("name", ""), "year": get_year(metadata), "presenter": metadata["presenter"]}
-            add_to_missing([entry])
+        if episode is not None and episode.presenter:
+            repo.add_to_missing(episode)
+            repo.save()
             info("Moderator für Fehlt-Liste gespeichert")
-            update_index(load_json())
+            update_index(repo)
         return False
 
 
@@ -541,102 +694,14 @@ def parse_bulk_page(url: str) -> tuple[list[dict], list[dict]]:
     return available, missing
 
 
-def add_to_missing(entries: list[dict]):
-    """Add entries to missing list if not already present, or update presenter if missing."""
-    current = load_missing()
-    current_by_title = {m.get("title", "").lower(): m for m in current}
-
-    # Also check downloaded
-    downloaded = load_json()
-    downloaded_titles = {d.get("name", "").lower() for d in downloaded}
-
-    added = 0
-    for entry in entries:
-        title_lower = entry.get("title", "").lower()
-        if title_lower in downloaded_titles:
-            continue  # Already downloaded, skip
-
-        if title_lower in current_by_title:
-            # Update presenter if we have it and existing entry doesn't
-            existing = current_by_title[title_lower]
-            if entry.get("presenter") and not existing.get("presenter"):
-                existing["presenter"] = entry["presenter"]
-        else:
-            current.append(entry)
-            current_by_title[title_lower] = entry
-            added += 1
-
-    save_missing(current)
-    return added
-
-
-def process_url_auto(url: str, presenter: str = "") -> bool:
+def process_url_auto(url: str, presenter: str = "", repo: EpisodeRepository | None = None, original_year: str = "") -> bool:
     """Process a URL without interactive prompts. Returns True on success."""
+    if repo is None:
+        repo = EpisodeRepository()
     try:
-        metadata = fetch_metadata(url)
-        title = metadata.get("name", "Unbekannt")
-        year = get_year(metadata)
-
-        # Check if already downloaded (file exists)
-        if is_already_downloaded(title, year):
-            slug = get_slug(title, year)
-            video_path = SACHGESCHICHTEN_DIR / f"{slug}.mp4"
-
-            # Check if entry exists in JSON by slug (title + year) - if not, add it
-            entries = load_json()
-            matching_entry = None
-            for e in entries:
-                entry_slug = get_slug(e.get("name", ""), get_year(e))
-                if entry_slug == slug:
-                    matching_entry = e
-                    break
-
-            if not matching_entry:
-                # File exists but JSON entry is missing - add it
-                if presenter:
-                    metadata["presenter"] = presenter
-                metadata["duration"] = get_video_duration(video_path)
-                upsert_entry(metadata)
-                remove_from_missing(title)
-            else:
-                # Entry exists - just update duration if missing
-                if matching_entry.get("duration") in (None, "", "NA"):
-                    duration = get_video_duration(video_path)
-                    if duration:
-                        matching_entry["duration"] = duration
-                        save_json(entries)
-            return True
-
-        if presenter:
-            metadata["presenter"] = presenter
-
-        slug = get_slug(title, year)
-        video_path = SACHGESCHICHTEN_DIR / f"{slug}.mp4"
-        image_path = SACHGESCHICHTEN_DIR / f"{slug}.webp"
-
-        # Download video
-        duration = download_video(url, video_path)
-        metadata["duration"] = duration
-
-        # Download image
-        image_url = metadata.get("image", {}).get("url") or (
-            metadata.get("thumbnailURL", [None])[0] if metadata.get("thumbnailURL") else None
-        )
-        if image_url:
-            download_image(image_url, image_path)
-
-        # Update JSON (upsert to avoid duplicates)
-        upsert_entry(metadata)
-
-        # Remove from missing if present
-        remove_from_missing(title)
-
-        return True
-
-    except Exception as e:
-        import traceback
-        warn(f"DEBUG: Fehler bei {url}: {e}")
-        warn(f"DEBUG: {traceback.format_exc()}")
+        success, _ = download_episode(url, repo, presenter=presenter, interactive=False, original_year=original_year)
+        return success
+    except Exception:
         return False
 
 
@@ -675,27 +740,6 @@ def download():
         process_url(url)
 
 
-def get_existing_presenter(title: str) -> str | None:
-    """Get presenter for a title from existing JSON data or missing list, or None if not set."""
-    # Check downloaded entries
-    entries = load_json()
-    for entry in entries:
-        if entry.get("name", "").lower() == title.lower():
-            presenter = entry.get("presenter", "")
-            if presenter:
-                return presenter
-
-    # Check missing entries
-    missing = load_missing()
-    for entry in missing:
-        if entry.get("title", "").lower() == title.lower():
-            presenter = entry.get("presenter", "")
-            if presenter:
-                return presenter
-
-    return None
-
-
 def ask_presenter(title: str, year: str) -> str | None:
     """Ask user for presenter. Returns None if cancelled."""
     click.echo()
@@ -703,7 +747,7 @@ def ask_presenter(title: str, year: str) -> str | None:
     presenter_questions = [
         inquirer.List(
             "presenter",
-            message="Wer moderiert?",
+            message=f"Wer moderiert '{title}' ({year})?",
             choices=["Christoph", "Armin", "Ralph", "Clarissa", "Siham", "Johannes", "Andre", "Jana", "Andere", "Unbekannt", "Überspringen"],
             carousel=True,
         ),
@@ -739,6 +783,8 @@ def bulk(url: str, no_download: bool, no_interactive: bool):
     click.echo(click.style("  ╚═══════════════════════════════════════╝", fg=ORANGE))
     click.echo()
 
+    repo = EpisodeRepository()
+
     info(f"Lese {url}")
 
     try:
@@ -751,7 +797,10 @@ def bulk(url: str, no_download: bool, no_interactive: bool):
 
     # Add missing episodes
     if missing_episodes:
-        added = add_to_missing(missing_episodes)
+        added = 0
+        for ep_data in missing_episodes:
+            if repo.add_to_missing(Episode.from_missing(ep_data)):
+                added += 1
         if added:
             success(f"{added} neue Folgen zur Fehlt-Liste hinzugefügt")
         else:
@@ -762,51 +811,33 @@ def bulk(url: str, no_download: bool, no_interactive: bool):
         click.echo()
         header("Lade verfügbare Folgen herunter")
 
-        # Filter out already downloaded - use URL for matching since titles
-        # can differ between A-Z listing and actual episode metadata
-        downloaded_entries = load_json()
-        downloaded_urls = set()
-        for d in downloaded_entries:
-            # Normalize URLs (remove double slashes, trailing slashes)
-            for key in ("url", "@id"):
-                if url_val := d.get(key):
-                    downloaded_urls.add(url_val.replace("//filme", "/filme").rstrip("/").lower())
+        # Filter out already downloaded by URL (more reliable than slug since titles can differ)
         to_download = [
             ep for ep in available
-            if ep["url"].rstrip("/").lower() not in downloaded_urls
+            if not repo.is_url_downloaded(ep["url"])
         ]
 
         # Update missing durations for already downloaded episodes
         updated_durations = 0
-        url_to_entry = {
-            d.get("url", "").replace("//filme", "/filme").rstrip("/").lower(): d
-            for d in downloaded_entries
-        }
-        for ep in available:
-            ep_url = ep["url"].rstrip("/").lower()
-            if ep_url in url_to_entry:
-                entry = url_to_entry[ep_url]
-                if entry.get("duration") in (None, "", "NA"):
-                    slug = get_slug(entry.get("name", ""), get_year(entry))
-                    video_path = SACHGESCHICHTEN_DIR / f"{slug}.mp4"
-                    if video_path.exists():
-                        duration = get_video_duration(video_path)
-                        if duration:
-                            entry["duration"] = duration
-                            updated_durations += 1
+        for downloaded_ep in repo.get_all_downloaded():
+            if not downloaded_ep.has_valid_duration() and downloaded_ep.video_path.exists():
+                duration = get_video_duration(downloaded_ep.video_path)
+                if duration:
+                    downloaded_ep.duration = duration
+                    updated_durations += 1
         if updated_durations:
-            save_json(downloaded_entries)
+            repo.save()
             success(f"Dauer für {updated_durations} Folgen ergänzt")
 
         # Collect episodes that need presenter info (including already downloaded ones without presenter)
         presenter_map = {}  # title -> presenter
 
         if not no_interactive:
-            # Find episodes needing presenter info
+            # Find episodes needing presenter info (check by URL for reliability)
             need_presenter = []
             for ep in available:
-                existing = get_existing_presenter(ep["title"])
-                if existing is None:  # No presenter info yet
+                existing_ep = repo.get_by_url(ep["url"])
+                if not existing_ep or not existing_ep.presenter:
                     need_presenter.append(ep)
 
             if need_presenter:
@@ -823,13 +854,10 @@ def bulk(url: str, no_download: bool, no_interactive: bool):
                         presenter_map[ep["title"].lower()] = presenter
 
                         # Update existing entries that already have files but no presenter
-                        if is_already_downloaded(ep["title"], ep["year"]):
-                            entries = load_json()
-                            for entry in entries:
-                                if entry.get("name", "").lower() == ep["title"].lower():
-                                    entry["presenter"] = presenter
-                                    break
-                            save_json(entries)
+                        existing_ep = repo.get_by_url(ep["url"])
+                        if existing_ep and existing_ep.is_downloaded:
+                            existing_ep.presenter = presenter
+                            repo.save()
 
         if not to_download:
             info("Alle verfügbaren Folgen bereits heruntergeladen")
@@ -843,7 +871,7 @@ def bulk(url: str, no_download: bool, no_interactive: bool):
 
             for ep in tqdm(to_download, desc="  🐭 Lädt", unit=" Folge"):
                 presenter = presenter_map.get(ep["title"].lower(), "")
-                if process_url_auto(ep["url"], presenter=presenter):
+                if process_url_auto(ep["url"], presenter=presenter, repo=repo, original_year=ep["year"]):
                     downloaded_count += 1
                 else:
                     failed.append(ep)
@@ -853,18 +881,16 @@ def bulk(url: str, no_download: bool, no_interactive: bool):
 
             if failed:
                 # Add failed episodes to missing list (include presenter if available)
-                failed_for_missing = []
                 for ep in failed:
-                    entry = {"title": ep["title"], "year": ep["year"]}
                     presenter = presenter_map.get(ep["title"].lower(), "")
-                    if presenter:
-                        entry["presenter"] = presenter
-                    failed_for_missing.append(entry)
-                add_to_missing(failed_for_missing)
+                    failed_ep = Episode(title=ep["title"], year=ep["year"], presenter=presenter)
+                    repo.add_to_missing(failed_ep)
+                repo.save()
                 warn(f"Fehlgeschlagen (zur Fehlt-Liste hinzugefügt): {', '.join(ep['title'] for ep in failed)}")
 
     # Update index at the end
-    update_index(load_json())
+    repo.save()
+    update_index(repo)
     success("index.md aktualisiert")
 
     click.echo()
