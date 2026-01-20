@@ -19,6 +19,8 @@ from pathlib import Path
 from urllib.parse import urljoin
 
 import click
+
+from lib import search_mediathekviewweb, download_mediathek_video
 import inquirer
 import requests
 from PIL import Image
@@ -385,16 +387,42 @@ def get_video_duration(video_path: Path) -> str:
     return ""
 
 
-def download_video(url: str, output_path: Path) -> str:
-    """Download video using yt-dlp, return duration in MM:SS format."""
-    # Download the video
-    subprocess.run(
-        ["yt-dlp", "-o", str(output_path), url],
-        check=True,
-    )
+def download_video(url: str, output_path: Path, title: str = "") -> str:
+    """Download video using yt-dlp, return duration in MM:SS format.
 
-    # Get duration from downloaded file
-    return get_video_duration(output_path)
+    If yt-dlp fails and a title is provided, falls back to searching
+    mediathekviewweb for "Die Maus" episodes with matching title.
+    """
+    try:
+        subprocess.run(
+            ["yt-dlp", "-o", str(output_path), url],
+            check=True,
+        )
+        return get_video_duration(output_path)
+    except subprocess.CalledProcessError:
+        if not title:
+            raise
+
+        # Try mediathekviewweb as fallback
+        results = search_mediathekviewweb(
+            topic="Die Maus",
+            title=title,
+            blocklist=["audiodeskription"],
+        )
+
+        if not results:
+            raise
+
+        # Try each result using shared download function
+        for result in results:
+            download_result = download_mediathek_video(
+                result, output_path, extract_duration=True
+            )
+            if download_result.success:
+                return download_result.duration_formatted
+
+        # All attempts failed
+        raise
 
 
 def download_image(url: str, output_path: Path):
@@ -529,7 +557,7 @@ def download_episode(
         episode.presenter = repo.get_presenter(episode.slug)
 
     # Download video
-    episode.duration = download_video(url, episode.video_path)
+    episode.duration = download_video(url, episode.video_path, title=episode.title)
 
     # Download image (non-fatal)
     if episode.image_url:
@@ -603,7 +631,7 @@ def process_url(url: str) -> bool:
 
         # Download video
         info(f"Lade Video herunter: {episode.video_path.name}")
-        episode.duration = download_video(url, episode.video_path)
+        episode.duration = download_video(url, episode.video_path, title=episode.title)
         success(f"Video heruntergeladen ({episode.duration})")
 
         # Download image

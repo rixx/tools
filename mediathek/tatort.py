@@ -9,18 +9,18 @@
 # ]
 # ///
 import csv
-import json
 import os
 import re
 import subprocess
 import sys
-from contextlib import suppress
 from pathlib import Path
 
 import bs4
 import inquirer
 import requests
 from openpyxl import load_workbook
+
+from lib import search_mediathekviewweb, download_mediathek_video
 
 CWD = Path(os.getcwd())
 CSV_PATH = Path(__file__).parent / "episodes.csv"
@@ -239,33 +239,21 @@ def bulk_download(noinput=False):
     global EPISODES, OFFSET
     EPISODES = load_csv()
     size = 10
-    query = {
-        "queries": [{"fields": ["topic"], "query": "tatort"}],
-        "duration_min": 4800,
-        "sortBy": "timestamp",
-        "sortOrder": "desc",
-        "future": "false",
-        "offset": OFFSET,
-        "size": 10,
-    }
-    url = "https://mediathekviewweb.de/api/query"
-    headers = {"Content-Type": "text/plain"}
-    blocklist = ("klare Sprache", "Audiodeskription")
+    blocklist = ["klare Sprache", "Audiodeskription"]
     seen = set()
     while True:
-        response = requests.post(url, data=json.dumps(query), headers=headers)
-        data = response.json()
-        if data.get("err"):
-            raise Exception(data)
-        print(
-            f"Got results {query['offset'] + 1} – {query['offset'] + size} out of {data['result']['queryInfo']['totalResults']}"
+        results = search_mediathekviewweb(
+            topic="tatort",
+            min_duration=4800,
+            max_results=size,
+            offset=OFFSET,
+            blocklist=blocklist,
         )
-        if not data["result"]["results"]:
+        print(f"Got {len(results)} results at offset {OFFSET}")
+        if not results:
             break
-        for entry in data["result"]["results"]:
-            title = entry["title"]
-            if any(b in title for b in blocklist):
-                continue
+        for result in results:
+            title = result.title
             if title in seen:
                 continue
             seen.add(title)
@@ -274,29 +262,20 @@ def bulk_download(noinput=False):
             )
             if not episode:
                 continue
-            filename = get_episode_filename(episode)
+            filename = Path(get_episode_filename(episode))
+            if filename.exists():
+                continue
             print(
                 f"Downloading {episode['episode']} – {episode['titel']} to {filename}"
             )
-            urls = [entry["url_video_hd"], entry["url_video"], entry["url_video_low"]]
-            for url in urls:
-                if not url:
-                    continue
-                if Path(filename).exists():
-                    break
-                with suppress(Exception):
-                    subprocess.call(["yt-dlp", "-o", filename, url])
-                    subprocess.check_output(
-                        ["notify-send", f"Finished downloading {episode['titel']}"]
-                    )
-                    break
+            download_result = download_mediathek_video(result, filename)
+            if download_result.success:
+                subprocess.call(["notify-send", f"Finished downloading {episode['titel']}"])
             else:
                 print(
-                    f"None of the URLs for {episode['episode']} – {episode['titel']} work, skipping."
+                    f"Download failed for {episode['episode']} – {episode['titel']}: {download_result.error}"
                 )
-                print(urls)
         OFFSET += size
-        query["offset"] = OFFSET
 
 
 def get_available_episodes():
