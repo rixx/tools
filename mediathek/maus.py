@@ -687,6 +687,31 @@ def process_url(url: str) -> bool:
         return False
 
 
+def parse_filter_letters(url: str) -> list[str]:
+    """Parse the filter letters from the A-Z main page and return list of filter URLs."""
+    response = requests.get(url)
+    response.raise_for_status()
+
+    # Find all filter letter links in <ul class="filterbuchstaben">
+    # Pattern: <a href="../../filme/sachgeschichten/a-bis-z.php5?filter=X">X</a>
+    pattern = r'<ul class="filterbuchstaben">.*?</ul>'
+    ul_match = re.search(pattern, response.text, re.DOTALL)
+    if not ul_match:
+        raise ValueError("Could not find filterbuchstaben list")
+
+    ul_content = ul_match.group(0)
+
+    # Extract all filter URLs
+    link_pattern = r'<a href="([^"]+\?filter=[^"]+)">'
+    filter_urls = []
+    for match in re.finditer(link_pattern, ul_content):
+        href = match.group(1)
+        full_url = urljoin(url, href)
+        filter_urls.append(full_url)
+
+    return filter_urls
+
+
 def parse_bulk_page(url: str) -> tuple[list[dict], list[dict]]:
     """Parse an A-Z list page and return (available, missing) episodes."""
     response = requests.get(url)
@@ -776,7 +801,7 @@ def ask_presenter(title: str, year: str) -> str | None:
         inquirer.List(
             "presenter",
             message=f"Wer moderiert '{title}' ({year})?",
-            choices=["Christoph", "Armin", "Ralph", "Clarissa", "Siham", "Johannes", "Andre", "Jana", "Andere", "Unbekannt", "Überspringen"],
+            choices=["Christoph", "Armin", "Ralph", "Clarissa", "Siham", "Johannes", "Andre", "Jana", "Laura", "Andere", "Unbekannt", "Überspringen"],
             carousel=True,
         ),
     ]
@@ -799,27 +824,15 @@ def ask_presenter(title: str, year: str) -> str | None:
     return presenter
 
 
-@cli.command()
-@click.argument("url")
-@click.option("--no-download", is_flag=True, help="Nicht herunterladen, nur Fehlt-Liste füllen")
-@click.option("--no-interactive", is_flag=True, help="Keine Rückfragen (Moderator wird nicht abgefragt)")
-def bulk(url: str, no_download: bool, no_interactive: bool):
-    """Massen-Import: A-Z Seite einlesen, fehlende Liste füllen, verfügbare herunterladen."""
-    click.echo()
-    click.echo(click.style("  ╔═══════════════════════════════════════╗", fg=ORANGE))
-    click.echo(click.style("  ║   🐭 Sachgeschichten Bulk Import 🐘   ║", fg=ORANGE))
-    click.echo(click.style("  ╚═══════════════════════════════════════╝", fg=ORANGE))
-    click.echo()
-
-    repo = EpisodeRepository()
-
+def process_bulk_url(url: str, no_download: bool, no_interactive: bool, repo: EpisodeRepository) -> bool:
+    """Process a single bulk URL. Returns True on success, False if cancelled."""
     info(f"Lese {url}")
 
     try:
         available, missing_episodes = parse_bulk_page(url)
     except Exception as e:
         error(f"Fehler beim Einlesen: {e}")
-        return
+        return True  # Continue with other URLs
 
     success(f"Gefunden: {len(available)} verfügbar, {len(missing_episodes)} nicht verfügbar")
 
@@ -840,6 +853,8 @@ def bulk(url: str, no_download: bool, no_interactive: bool):
         header("Lade verfügbare Folgen herunter")
 
         # Filter out already downloaded by URL (more reliable than slug since titles can differ)
+        # Don't skip episodes in missing list - they may be failed downloads that should be retried
+        # (Episodes truly unavailable from WDR won't appear in 'available' anyway - they have no URL)
         to_download = [
             ep for ep in available
             if not repo.is_url_downloaded(ep["url"])
@@ -864,9 +879,16 @@ def bulk(url: str, no_download: bool, no_interactive: bool):
             # Find episodes needing presenter info (check by URL for reliability)
             need_presenter = []
             for ep in available:
+                # Check downloaded episodes by URL
                 existing_ep = repo.get_by_url(ep["url"])
-                if not existing_ep or not existing_ep.presenter:
-                    need_presenter.append(ep)
+                if existing_ep and existing_ep.presenter:
+                    continue
+                # Check missing list by slug (failed downloads are stored there)
+                slug = get_slug(ep["title"], ep["year"])
+                missing_ep = repo._missing.get(slug)
+                if missing_ep and missing_ep.presenter:
+                    continue
+                need_presenter.append(ep)
 
             if need_presenter:
                 click.echo()
@@ -877,7 +899,7 @@ def bulk(url: str, no_download: bool, no_interactive: bool):
                     presenter = ask_presenter(ep["title"], ep["year"])
                     if presenter is None:  # Cancelled
                         warn("Abgebrochen")
-                        return
+                        return False  # User cancelled
                     if presenter:  # Not skipped
                         presenter_map[ep["title"].lower()] = presenter
 
@@ -915,6 +937,72 @@ def bulk(url: str, no_download: bool, no_interactive: bool):
                     repo.add_to_missing(failed_ep)
                 repo.save()
                 warn(f"Fehlgeschlagen (zur Fehlt-Liste hinzugefügt): {', '.join(ep['title'] for ep in failed)}")
+
+    return True
+
+
+@cli.command()
+@click.argument("url")
+@click.option("--no-download", is_flag=True, help="Nicht herunterladen, nur Fehlt-Liste füllen")
+@click.option("--no-interactive", is_flag=True, help="Keine Rückfragen (Moderator wird nicht abgefragt)")
+def bulk(url: str, no_download: bool, no_interactive: bool):
+    """Massen-Import: A-Z Seite einlesen, fehlende Liste füllen, verfügbare herunterladen."""
+    click.echo()
+    click.echo(click.style("  ╔═══════════════════════════════════════╗", fg=ORANGE))
+    click.echo(click.style("  ║   🐭 Sachgeschichten Bulk Import 🐘   ║", fg=ORANGE))
+    click.echo(click.style("  ╚═══════════════════════════════════════╝", fg=ORANGE))
+    click.echo()
+
+    repo = EpisodeRepository()
+
+    if not process_bulk_url(url, no_download, no_interactive, repo):
+        return
+
+    # Update index at the end
+    repo.save()
+    update_index(repo)
+    success("index.md aktualisiert")
+
+    click.echo()
+    info("Fertig!")
+    click.echo()
+
+
+@cli.command()
+@click.option("--no-download", is_flag=True, help="Nicht herunterladen, nur Fehlt-Liste füllen")
+@click.option("--no-interactive", is_flag=True, help="Keine Rückfragen (Moderator wird nicht abgefragt)")
+def all(no_download: bool, no_interactive: bool):
+    """Alle Buchstaben: A-Z Seite laden und alle Buchstaben-Filter durchgehen."""
+    click.echo()
+    click.echo(click.style("  ╔═══════════════════════════════════════╗", fg=ORANGE))
+    click.echo(click.style("  ║   🐭 Sachgeschichten Komplett 🐘      ║", fg=ORANGE))
+    click.echo(click.style("  ╚═══════════════════════════════════════╝", fg=ORANGE))
+    click.echo()
+
+    base_url = "https://www.wdrmaus.de/filme/sachgeschichten/a-bis-z.php5"
+    repo = EpisodeRepository()
+
+    info(f"Lese Filter-Buchstaben von {base_url}")
+
+    try:
+        filter_urls = parse_filter_letters(base_url)
+    except Exception as e:
+        error(f"Fehler beim Einlesen der Filter: {e}")
+        return
+
+    success(f"Gefunden: {len(filter_urls)} Filter (Buchstaben/Zahlen)")
+    click.echo()
+
+    for i, filter_url in enumerate(filter_urls, 1):
+        # Extract filter letter for display
+        filter_char = filter_url.split("filter=")[-1].upper()
+        header(f"[{i}/{len(filter_urls)}] Buchstabe: {filter_char}")
+
+        if not process_bulk_url(filter_url, no_download, no_interactive, repo):
+            warn("Abgebrochen")
+            break
+
+        click.echo()
 
     # Update index at the end
     repo.save()
