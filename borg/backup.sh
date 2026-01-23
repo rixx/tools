@@ -17,7 +17,7 @@ info "Starting backup"
 
 # Backup the most important directories into an archive named after
 # the machine this script is currently running on:
-/usr/bin/borg create                \
+uvx --from borgbackup borg create                \
     --verbose                       \
     --filter AME                    \
     --stats                         \
@@ -38,7 +38,7 @@ info "Pruning repository"
 # limit prune's operation to this machine's archives and not apply to
 # other machines' archives also:
 
-/usr/bin/borg prune                 \
+uvx --from borgbackup borg prune                 \
     --list                          \
     --prefix '{hostname}-'          \
     --show-rc                       \
@@ -51,7 +51,7 @@ prune_exit=$?
 # use highest exit code as global exit code
 global_exit=$(( backup_exit > prune_exit ? backup_exit : prune_exit ))
 
-/usr/bin/borg compact
+uvx --from borgbackup borg compact
 compact_exit=$?
 
 # use highest exit code as global exit code
