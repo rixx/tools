@@ -49,6 +49,9 @@ class Episode:
     alt_url: str = ""  # @id field
     image_url: str = ""
     date_published: str = ""  # Metadata publication date
+    skip: bool = False  # Skip in YouTube search (for missing episodes)
+
+    VIDEO_EXTENSIONS = (".mp4",)  # .webm files are converted to .mp4 by cleanup
 
     @property
     def slug(self) -> str:
@@ -56,7 +59,16 @@ class Episode:
 
     @property
     def video_path(self) -> Path:
+        """Returns the canonical .mp4 path (for new downloads)."""
         return SACHGESCHICHTEN_DIR / f"{self.slug}.mp4"
+
+    def find_video_path(self) -> Path | None:
+        """Find actual video file, checking multiple extensions."""
+        for ext in self.VIDEO_EXTENSIONS:
+            path = SACHGESCHICHTEN_DIR / f"{self.slug}{ext}"
+            if path.exists():
+                return path
+        return None
 
     @property
     def image_path(self) -> Path:
@@ -64,7 +76,7 @@ class Episode:
 
     @property
     def is_downloaded(self) -> bool:
-        return self.video_path.exists()
+        return self.find_video_path() is not None
 
     def has_valid_duration(self) -> bool:
         return self.duration not in (None, "", "NA")
@@ -96,6 +108,7 @@ class Episode:
             title=entry.get("title", ""),
             year=entry.get("year", ""),
             presenter=entry.get("presenter", ""),
+            skip=entry.get("skip", False),
         )
 
     def to_metadata_dict(self) -> dict:
@@ -125,6 +138,8 @@ class Episode:
         result = {"title": self.title, "year": self.year}
         if self.presenter:
             result["presenter"] = self.presenter
+        if self.skip:
+            result["skip"] = True
         return result
 
     def merge_from(self, other: "Episode"):
@@ -387,6 +402,62 @@ def get_video_duration(video_path: Path) -> str:
     return ""
 
 
+def search_youtube(query: str, max_results: int = 5) -> list[dict]:
+    """Search YouTube using yt-dlp and return list of results.
+
+    Each result contains: id, title, duration, channel, url
+    """
+    try:
+        result = subprocess.run(
+            [
+                "yt-dlp",
+                f"ytsearch{max_results}:{query}",
+                "--dump-json",
+                "--flat-playlist",
+                "--no-warnings",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            return []
+
+        results = []
+        for line in result.stdout.strip().split("\n"):
+            if not line:
+                continue
+            try:
+                data = json.loads(line)
+                duration_secs = data.get("duration") or 0
+                if duration_secs:
+                    mins = int(duration_secs // 60)
+                    secs = int(duration_secs % 60)
+                    duration_str = f"{mins}:{secs:02d}"
+                else:
+                    duration_str = "?"
+                # Get best thumbnail URL
+                thumbnail_url = data.get("thumbnail", "")
+                if not thumbnail_url and data.get("thumbnails"):
+                    # Pick the last (usually highest quality) thumbnail
+                    thumbnail_url = data["thumbnails"][-1].get("url", "")
+                results.append({
+                    "id": data.get("id", ""),
+                    "title": data.get("title", "Unbekannt"),
+                    "duration": duration_str,
+                    "channel": data.get("channel", data.get("uploader", "?")),
+                    "url": data.get("url") or f"https://www.youtube.com/watch?v={data.get('id', '')}",
+                    "thumbnail": thumbnail_url,
+                })
+            except json.JSONDecodeError:
+                continue
+        return results
+    except subprocess.TimeoutExpired:
+        return []
+    except Exception:
+        return []
+
+
 def download_video(url: str, output_path: Path, title: str = "") -> str:
     """Download video using yt-dlp, return duration in MM:SS format.
 
@@ -395,7 +466,7 @@ def download_video(url: str, output_path: Path, title: str = "") -> str:
     """
     try:
         subprocess.run(
-            ["yt-dlp", "-o", str(output_path), url],
+            ["yt-dlp", "--merge-output-format", "mp4", "-o", str(output_path), url, "--cookies-from-browser"],
             check=True,
         )
         return get_video_duration(output_path)
@@ -863,7 +934,7 @@ def process_bulk_url(url: str, no_download: bool, no_interactive: bool, repo: Ep
         # Update missing durations for already downloaded episodes
         updated_durations = 0
         for downloaded_ep in repo.get_all_downloaded():
-            if not downloaded_ep.has_valid_duration() and downloaded_ep.video_path.exists():
+            if not downloaded_ep.has_valid_duration() and downloaded_ep.find_video_path():
                 duration = get_video_duration(downloaded_ep.video_path)
                 if duration:
                     downloaded_ep.duration = duration
@@ -1011,6 +1082,380 @@ def all(no_download: bool, no_interactive: bool):
 
     click.echo()
     info("Fertig!")
+    click.echo()
+
+
+@cli.command()
+def findall():
+    """YouTube-Suche: Fehlende Folgen auf YouTube suchen und herunterladen."""
+    click.echo()
+    click.echo(click.style("  ╔═══════════════════════════════════════╗", fg=ORANGE))
+    click.echo(click.style("  ║   🐭 YouTube-Suche für Fehlende 🐘    ║", fg=ORANGE))
+    click.echo(click.style("  ╚═══════════════════════════════════════╝", fg=ORANGE))
+    click.echo()
+
+    repo = EpisodeRepository()
+    all_missing = repo.get_all_missing()
+
+    # Filter out permanently skipped episodes
+    missing = [ep for ep in all_missing if not ep.skip]
+    skipped_permanently = len(all_missing) - len(missing)
+
+    if not missing:
+        if skipped_permanently:
+            info(f"Keine fehlenden Folgen (außer {skipped_permanently} permanent übersprungene).")
+        else:
+            info("Keine fehlenden Folgen in der Liste.")
+        return
+
+    info(f"{len(missing)} fehlende Folgen gefunden" +
+         (f" ({skipped_permanently} permanent übersprungen)" if skipped_permanently else ""))
+    click.echo()
+
+    downloaded_count = 0
+    skipped_count = 0
+
+    for i, episode in enumerate(sorted(missing, key=lambda x: x.title.lower()), 1):
+        header(f"[{i}/{len(missing)}] {episode.title} ({episode.year})")
+
+        # Search YouTube first
+        query = f"sendung mit der maus {episode.title}"
+        info(f"Suche: {query}")
+
+        results = search_youtube(query, max_results=5)
+
+        if not results:
+            warn("Keine Ergebnisse gefunden - wird übersprungen")
+            episode.skip = True
+            repo.save()
+            skipped_count += 1
+            continue
+
+        # Build choices for inquirer
+        choices = []
+        for j, r in enumerate(results, 1):
+            label = f"{j}. [{r['duration']}] {r['title'][:50]}: {r['url']}"
+            choices.append((label, r))
+        choices.append(("Andere URL eingeben", "other"))
+        choices.append(("Bereits heruntergeladen", "already_downloaded"))
+        choices.append(("Überspringen", None))
+        choices.append(("Immer überspringen", "skip_forever"))
+        choices.append(("Abbrechen", "abort"))
+
+        # Show results and ask user
+        questions = [
+            inquirer.List(
+                "selection",
+                message="Welches Video herunterladen?",
+                choices=choices,
+                carousel=True,
+            ),
+        ]
+        answer = inquirer.prompt(questions)
+
+        if not answer or answer["selection"] == "abort":
+            warn("Abgebrochen")
+            break
+
+        if answer["selection"] == "skip_forever":
+            episode.skip = True
+            repo.save()
+            info("Wird in Zukunft übersprungen")
+            skipped_count += 1
+            continue
+
+        if answer["selection"] is None:
+            info("Übersprungen")
+            skipped_count += 1
+            continue
+
+        if answer["selection"] == "already_downloaded":
+            repo.remove_from_missing(episode.slug)
+            repo.save()
+            info("Von Fehlt-Liste entfernt")
+            continue
+
+        # Handle custom URL input
+        thumbnail_url = None
+        if answer["selection"] == "other":
+            url_q = [inquirer.Text("url", message="URL eingeben")]
+            url_answer = inquirer.prompt(url_q)
+            if not url_answer or not url_answer["url"]:
+                info("Übersprungen")
+                skipped_count += 1
+                continue
+            download_url = url_answer["url"]
+            info(f"Lade herunter von: {download_url}")
+        else:
+            selected = answer["selection"]
+            download_url = selected["url"]
+            thumbnail_url = selected.get("thumbnail")
+            info(f"Lade herunter: {selected['title']}")
+
+        # Ask for presenter if not already known, save immediately
+        presenter = episode.presenter
+        if not presenter:
+            presenter_result = ask_presenter(episode.title, episode.year)
+            if presenter_result is None:
+                warn("Abgebrochen")
+                break
+            presenter = presenter_result
+            episode.presenter = presenter
+            repo.save()
+
+        # Download with yt-dlp
+        try:
+            subprocess.run(
+                ["yt-dlp", "--merge-output-format", "mp4", "-o", str(episode.video_path), download_url],
+                check=True,
+            )
+            duration = get_video_duration(episode.video_path)
+
+            # Download thumbnail if available
+            if thumbnail_url:
+                try:
+                    download_image(thumbnail_url, episode.image_path)
+                    episode.image_url = thumbnail_url
+                except Exception:
+                    pass  # Thumbnail download is non-fatal
+
+            # Update episode and save
+            episode.duration = duration
+            episode.url = download_url
+            repo.upsert_downloaded(episode)
+            repo.remove_from_missing(episode.slug)
+            repo.save()
+
+            success(f"Heruntergeladen: {episode.video_path.name} ({duration})")
+            downloaded_count += 1
+
+        except subprocess.CalledProcessError as e:
+            error(f"Download fehlgeschlagen: {e}")
+            skipped_count += 1
+
+        click.echo()
+
+    # Final update
+    update_index(repo)
+    success("index.md aktualisiert")
+
+    click.echo()
+    success(f"Fertig! {downloaded_count} heruntergeladen, {skipped_count} übersprungen")
+    click.echo()
+
+
+@cli.command()
+@click.option("--apply", is_flag=True, help="Änderungen tatsächlich durchführen (ohne: nur Vorschau)")
+def cleanup(apply: bool):
+    """Aufräumen: Inkonsistenzen zwischen JSON und Dateien beheben."""
+    click.echo()
+    click.echo(click.style("  ╔═══════════════════════════════════════╗", fg=ORANGE))
+    click.echo(click.style("  ║   🐭 Sachgeschichten Cleanup 🐘       ║", fg=ORANGE))
+    click.echo(click.style("  ╚═══════════════════════════════════════╝", fg=ORANGE))
+    click.echo()
+
+    if not apply:
+        info("Vorschau-Modus (--apply zum Ausführen)")
+        click.echo()
+
+    repo = EpisodeRepository()
+
+    # Check for files with incorrect names (old naming scheme, webm files)
+    header("Prüfe: Dateien mit falschem Namen")
+    files_to_rename = []  # (old_path, new_path, episode_or_none, is_webm_conversion)
+
+    # First: find all .webm files that need conversion to .mp4
+    for f in list(SACHGESCHICHTEN_DIR.glob("*.webm")) + list(SACHGESCHICHTEN_DIR.glob("*.mp4.webm")):
+        mp4_path = f.with_name(f.name.replace(".mp4.webm", ".mp4").replace(".webm", ".mp4"))
+        files_to_rename.append((f, mp4_path, None, True))
+
+    def normalize_for_comparison(name: str) -> str:
+        """Normalize a filename for comparison (handle umlauts, parentheses, etc)."""
+        name = name.lower()
+        # Replace umlauts
+        for char, replacement in [("ä", "ae"), ("ö", "oe"), ("ü", "ue"), ("ß", "ss")]:
+            name = name.replace(char, replacement)
+        # Remove parentheses and clean up
+        name = name.replace("(", "").replace(")", "")
+        name = re.sub(r"-+", "-", name).strip("-")
+        return name
+
+    # Then: find files with incorrect names (umlauts, etc.)
+    for episode in repo.get_all_downloaded():
+        expected_video = episode.video_path
+        expected_image = episode.image_path
+
+        # Skip if expected file already exists
+        if expected_video.exists():
+            continue
+
+        # Look for files that might have the old naming scheme
+        expected_normalized = normalize_for_comparison(expected_video.stem)
+
+        for existing_file in list(SACHGESCHICHTEN_DIR.glob("*.mp4")) + list(SACHGESCHICHTEN_DIR.glob("*.webm")):
+            existing_normalized = normalize_for_comparison(existing_file.stem)
+
+            if existing_normalized == expected_normalized:
+                # Only add if actually needs renaming
+                if existing_file != expected_video:
+                    is_webm = existing_file.suffix == ".webm"
+                    files_to_rename.append((existing_file, expected_video, episode, is_webm))
+                # Also check for corresponding webp
+                existing_webp = existing_file.with_suffix(".webp")
+                if existing_webp.exists() and existing_webp != expected_image:
+                    files_to_rename.append((existing_webp, expected_image, episode, False))
+                break
+
+    if not files_to_rename:
+        success("Alle Dateien haben korrekte Namen")
+    else:
+        for old_path, new_path, episode, _ in files_to_rename:
+            if episode:
+                warn(f"{episode.title} ({episode.year}): {old_path.name} -> {new_path.name}")
+            else:
+                warn(f"{old_path.name} -> {new_path.name}")
+
+        info(f"{len(files_to_rename)} Dateien zum Umbenennen gefunden")
+
+        if apply:
+            for old_path, new_path, episode, is_webm in files_to_rename:
+                if is_webm:
+                    # Convert webm to mp4 using ffmpeg
+                    try:
+                        subprocess.run(
+                            ["ffmpeg", "-i", str(old_path), "-c", "copy", str(new_path)],
+                            check=True,
+                            capture_output=True,
+                        )
+                        old_path.unlink()
+                    except subprocess.CalledProcessError as e:
+                        error(f"Konvertierung fehlgeschlagen: {old_path.name}")
+                        if e.stderr:
+                            click.echo(f"    {e.stderr.decode()[-200:]}")
+                        continue
+                else:
+                    old_path.rename(new_path)
+            success(f"{len(files_to_rename)} Dateien umbenannt/konvertiert")
+            click.echo()
+            info("Bitte erneut ausführen, um weitere Prüfungen durchzuführen.")
+            click.echo()
+            return
+
+    # Track which episodes will be fixed by renaming
+    episodes_fixed_by_rename = {ep.slug for _, _, ep, _ in files_to_rename if ep}
+
+    # Check for entries in downloaded list without files on disk
+    header("Prüfe: Einträge ohne Datei auf Disk")
+    # Reload repo to pick up renamed files
+    if apply and files_to_rename:
+        repo.reload()
+
+    missing_files = []
+    for episode in repo.get_all_downloaded():
+        if not episode.find_video_path():
+            # Skip if this will be fixed by renaming
+            if episode.slug in episodes_fixed_by_rename:
+                continue
+            missing_files.append(episode)
+            warn(f"{episode.title} ({episode.year}) -> {episode.video_path.name}")
+
+    if not missing_files:
+        success("Alle Einträge haben Dateien auf Disk")
+    else:
+        info(f"{len(missing_files)} Einträge ohne Datei gefunden")
+
+        if apply:
+            for episode in missing_files:
+                # Remove from downloaded first, then add to missing
+                repo._downloaded.pop(episode.slug, None)
+                repo.add_to_missing(episode)
+            repo.save()
+            update_index(repo)
+            success(f"{len(missing_files)} Einträge zur Fehlt-Liste verschoben")
+
+    # Check for entries missing duration data
+    header("Prüfe: Einträge ohne Dauer-Information")
+    missing_duration = []
+    for episode in repo.get_all_downloaded():
+        if not episode.has_valid_duration() and episode.find_video_path():
+            missing_duration.append(episode)
+            warn(f"{episode.title} ({episode.year})")
+
+    if not missing_duration:
+        success("Alle Einträge haben Dauer-Information")
+    else:
+        info(f"{len(missing_duration)} Einträge ohne Dauer gefunden")
+
+        if apply:
+            for episode in missing_duration:
+                video_file = episode.find_video_path()
+                if video_file:
+                    duration = get_video_duration(video_file)
+                    if duration:
+                        episode.duration = duration
+            repo.save()
+            update_index(repo)
+            success(f"Dauer für {len(missing_duration)} Einträge ergänzt")
+
+    # Check for entries missing presenter data
+    header("Prüfe: Einträge ohne Moderator-Information")
+    missing_presenter = []
+    for episode in repo.get_all_downloaded():
+        if not episode.presenter:
+            missing_presenter.append(episode)
+            warn(f"{episode.title} ({episode.year})")
+
+    if not missing_presenter:
+        success("Alle Einträge haben Moderator-Information")
+    else:
+        info(f"{len(missing_presenter)} Einträge ohne Moderator gefunden")
+
+        if apply:
+            updated_count = 0
+            for episode in sorted(missing_presenter, key=lambda x: x.title.lower()):
+                presenter = ask_presenter(episode.title, episode.year)
+                if presenter is None:  # Cancelled
+                    warn("Abgebrochen")
+                    break
+                if presenter:  # Not skipped
+                    episode.presenter = presenter
+                    updated_count += 1
+                    repo.save()  # Save after each to preserve progress
+            if updated_count:
+                update_index(repo)
+                success(f"Moderator für {updated_count} Einträge ergänzt")
+
+    # Check for entries in missing list that actually have files on disk
+    header("Prüfe: Fehlt-Einträge mit Datei auf Disk")
+    found_on_disk = []
+    for episode in repo.get_all_missing():
+        video_file = episode.find_video_path()
+        if video_file:
+            found_on_disk.append((episode, video_file))
+            warn(f"{episode.title} ({episode.year}) -> {video_file.name}")
+
+    if not found_on_disk:
+        success("Keine Fehlt-Einträge haben Dateien auf Disk")
+    else:
+        info(f"{len(found_on_disk)} Fehlt-Einträge mit Datei gefunden")
+
+        if apply:
+            for episode, video_file in found_on_disk:
+                # Get duration from file
+                episode.duration = get_video_duration(video_file)
+                # Move to downloaded list
+                repo.upsert_downloaded(episode)
+                repo.remove_from_missing(episode.slug)
+            repo.save()
+            update_index(repo)
+            success(f"{len(found_on_disk)} Einträge zur Download-Liste verschoben")
+
+    click.echo()
+    needs_apply = files_to_rename or missing_files or missing_duration or missing_presenter or found_on_disk
+    if not apply and needs_apply:
+        info("Führe mit --apply aus, um Änderungen zu übernehmen")
+    else:
+        info("Fertig!")
     click.echo()
 
 
