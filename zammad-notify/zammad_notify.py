@@ -31,13 +31,22 @@ IGNORE_BODY = get_config_list("ignore", "body")
 IGNORE_TAGS = set(get_config_list("ignore", "tags"))
 IGNORE_FROM = get_config_list("ignore", "from")
 QUOTES = get_config_list("cut", "quotes")
+ARTICLE_SKIP_FROM = get_config_list("article", "skip_from")
 
 
 class Ticket:
     def __init__(self, ticket_id):
         ticket_data = zammad_get(f"/tickets/{ticket_id}")
         customer = zammad_get(f'/users/{ticket_data["customer_id"]}')
-        body = zammad_get(f"/ticket_articles/by_ticket/{ticket_id}")[-1]["body"]
+        articles = zammad_get(f"/ticket_articles/by_ticket/{ticket_id}")
+        if ARTICLE_SKIP_FROM:
+            filtered = [
+                a for a in articles
+                if not any(skip in a.get("from", "").lower() for skip in ARTICLE_SKIP_FROM)
+            ]
+            if filtered:
+                articles = filtered
+        body = articles[-1]["body"]
 
         self.ticket_id = ticket_id
         self.subject = ticket_data["title"]
