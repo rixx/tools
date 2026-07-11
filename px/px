@@ -254,7 +254,7 @@ def update(*, args):
     systemd_run("enable", f"pretalx@{next_venv}.socket")
     print("Changing caddy config …")
     subprocess_run(
-        ["sudo", "sed", "-i", f"s/{current_venv}/{next_venv}/g", CADDY],
+        ["sudo", "sed", "-i", f"s/pretalx_{current_venv}/pretalx_{next_venv}/g", CADDY],
         check=True,
         cwd=cwd,
     )
