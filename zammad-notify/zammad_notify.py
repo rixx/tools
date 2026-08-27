@@ -41,8 +41,11 @@ class Ticket:
         articles = zammad_get(f"/ticket_articles/by_ticket/{ticket_id}")
         if ARTICLE_SKIP_FROM:
             filtered = [
-                a for a in articles
-                if not any(skip in a.get("from", "").lower() for skip in ARTICLE_SKIP_FROM)
+                a
+                for a in articles
+                if not any(
+                    skip in a.get("from", "").lower() for skip in ARTICLE_SKIP_FROM
+                )
             ]
             if filtered:
                 articles = filtered

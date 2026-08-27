@@ -231,17 +231,12 @@ RUNNERS = 2
 
 runner_lines = '          <td><input type="text" /></td>\n' * RUNNERS
 runner_headers = "          <th contenteditable>R1 (editme)</th>" * RUNNERS
-result = "\n".join(
-    [
-        f"""        <tr>
+result = "\n".join([f"""        <tr>
           <td>{split}</td>
           {runner_lines}
           <td></td>
           <td></td>
-        </tr>"""
-        for split in SPLITS + ["gg"]
-    ]
-)
+        </tr>""" for split in SPLITS + ["gg"]])
 
 with open("template.html", "r") as fp:
     content = fp.read()

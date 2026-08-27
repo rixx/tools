@@ -5,6 +5,7 @@
 # ///
 import functools
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -133,33 +134,86 @@ def sha_equal(a, b):
     return a[:7] == b[:7]
 
 
+def get_current_commit(config=None):
+    config = config or get_config()
+    user = config["user"]
+    current = config["current"]
+    for path in Path(f"/var/lib/{user}/{current}/lib").glob(
+        "python*/site-packages/pretalx-*.dist-info/direct_url.json"
+    ):
+        try:
+            with open(path) as f:
+                return json.load(f)["vcs_info"]["commit_id"]
+        except Exception:
+            pass
+    return config["version"]
+
+
+def github_api(url):
+    response = urlopen(url)
+    if response.status != 200:
+        raise Exception(f"GitHub returned status {response.status}")
+    return json.loads(response.read().decode())
+
+
 def autoupdate(*, args):
     # Check which commit we are running. If there is a new one that has a passing build, call update().
-    current_commit = get_config()["version"]
+    current_commit = get_current_commit()
 
     # We're getting the latest 10 runs of pretalx tests
-    response = urlopen(
-        "https://api.github.com/repos/pretalx/pretalx/actions/workflows/2006620/runs?per_page=10&branch=main"
-    )
-    if response.status != 200:
-        print("Could not fetch status from GitHub")
-        return
     try:
-        data = json.loads(response.read().decode())
-    except Exception:
-        print("Could not parse status from GitHub")
+        data = github_api(
+            "https://api.github.com/repos/pretalx/pretalx/actions/workflows/2006620/runs?per_page=10&branch=main&status=success"
+        )
+    except Exception as e:
+        print(f"Could not fetch status from GitHub: {e}")
         return
 
-    for run in data["workflow_runs"]:
+    # The runs list is ordered by run creation, not commit date, so a re-run
+    # of an old commit lists first. Sort by commit date and only deploy
+    # commits that are ancestry-wise ahead of the current one.
+    runs = [
+        run
+        for run in data["workflow_runs"]
+        if run["status"] == "completed" and run["conclusion"] == "success"
+    ]
+    runs.sort(
+        key=lambda run: (run.get("head_commit") or {}).get("timestamp", ""),
+        reverse=True,
+    )
+
+    if not current_commit or not re.fullmatch(r"[0-9a-f]{7,40}", current_commit):
+        # No usable current commit to compare against; trust the commit-date
+        # ordering and take the newest passing run.
+        if runs:
+            run_commit = runs[0]["head_sha"]
+            print(
+                f"Current commit unknown ({current_commit!r}), "
+                f"updating to newest passing commit {run_commit} …"
+            )
+            return update(args=[run_commit] + args)
+        print("No commit with passing build found.")
+        return
+
+    for run in runs:
         run_commit = run["head_sha"]
         if sha_equal(run_commit, current_commit):
-            # We found our current commit, so we can stop looking,
-            # and we don't need to update either.
+            # Already running the newest passing commit.
             return
-        if run["status"] == "completed" and run["conclusion"] == "success":
-            # We found a newer commit that has a passing build, so we can update to it.
+        try:
+            comparison = github_api(
+                f"https://api.github.com/repos/pretalx/pretalx/compare/{current_commit}...{run_commit}"
+            )
+        except Exception as e:
+            print(f"Could not compare {current_commit} to {run_commit}: {e}")
+            return
+        if comparison["status"] == "ahead":
             print(f"Found newer commit {run_commit} with passing build, updating …")
             return update(args=[run_commit] + args)
+        if comparison["status"] in ("behind", "identical"):
+            # Candidate is older than what we run; nothing newer exists.
+            return
+        # diverged: not on our history line (force push), try the next run
     print("No newer commit with passing build found.")
 
 

@@ -95,8 +95,7 @@ def get_value_from_data(*, key, value):
 
 def create_db(*, connection):
     cursor = connection.cursor()
-    cursor.execute(
-        """CREATE TABLE IF NOT EXISTS tickets (
+    cursor.execute("""CREATE TABLE IF NOT EXISTS tickets (
         id int primary key,
         created datetime,
         changetime datetime,
@@ -119,8 +118,7 @@ def create_db(*, connection):
         needs_tests boolean,
         needs_docs boolean,
         ui_ux boolean
-    )"""
-    )
+    )""")
     connection.commit()
 
 

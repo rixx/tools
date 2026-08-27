@@ -18,9 +18,8 @@ from pathlib import Path
 import bs4
 import inquirer
 import requests
+from lib import download_mediathek_video, search_mediathekviewweb
 from openpyxl import load_workbook
-
-from lib import search_mediathekviewweb, download_mediathek_video
 
 CWD = Path(os.getcwd())
 CSV_PATH = Path(__file__).parent / "episodes.csv"
@@ -270,7 +269,9 @@ def bulk_download(noinput=False):
             )
             download_result = download_mediathek_video(result, filename)
             if download_result.success:
-                subprocess.call(["notify-send", f"Finished downloading {episode['titel']}"])
+                subprocess.call(
+                    ["notify-send", f"Finished downloading {episode['titel']}"]
+                )
             else:
                 print(
                     f"Download failed for {episode['episode']} – {episode['titel']}: {download_result.error}"

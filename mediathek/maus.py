@@ -19,10 +19,9 @@ from pathlib import Path
 from urllib.parse import urljoin
 
 import click
-
-from lib import search_mediathekviewweb, download_mediathek_video
 import inquirer
 import requests
+from lib import download_mediathek_video, search_mediathekviewweb
 from PIL import Image
 from tqdm import tqdm
 
@@ -54,6 +53,7 @@ PRESENTER_FULL_NAMES = {
 @dataclass
 class Episode:
     """Unified episode data model."""
+
     title: str
     year: str = ""  # Original broadcast year (used for filename)
     presenter: str = ""
@@ -130,8 +130,11 @@ class Episode:
     def from_metadata(cls, metadata: dict) -> "Episode":
         """Construct from JSON-LD metadata dict."""
         date_str = metadata.get("datePublished", "")
-        image_url = (metadata.get("image", {}).get("url") or
-                     (metadata.get("thumbnailURL", []) or [None])[0] or "")
+        image_url = (
+            metadata.get("image", {}).get("url")
+            or (metadata.get("thumbnailURL", []) or [None])[0]
+            or ""
+        )
         # Prefer originalYear (broadcast year) over datePublished year
         year = metadata.get("originalYear") or (date_str[:4] if date_str else "")
         return cls(
@@ -162,7 +165,9 @@ class Episode:
         if self.date_published:
             result["datePublished"] = self.date_published
         # Always save originalYear if it differs from datePublished year
-        if self.year and (not self.date_published or self.year != self.date_published[:4]):
+        if self.year and (
+            not self.date_published or self.year != self.date_published[:4]
+        ):
             result["originalYear"] = self.year
         if self.description:
             result["description"] = self.description
@@ -241,17 +246,24 @@ class EpisodeRepository:
         """Get episode by URL."""
         normalized = self._normalize_url(url)
         for ep in self._downloaded.values():
-            if self._normalize_url(ep.url) == normalized or self._normalize_url(ep.alt_url) == normalized:
+            if (
+                self._normalize_url(ep.url) == normalized
+                or self._normalize_url(ep.alt_url) == normalized
+            ):
                 return ep
         return None
 
     def save(self):
-        entries = sorted([ep.to_metadata_dict() for ep in self._downloaded.values()],
-                        key=lambda x: x.get("name", "").lower())
+        entries = sorted(
+            [ep.to_metadata_dict() for ep in self._downloaded.values()],
+            key=lambda x: x.get("name", "").lower(),
+        )
         JSON_FILE.write_text(json.dumps(entries, indent=2, ensure_ascii=False))
 
-        missing = sorted([ep.to_missing_dict() for ep in self._missing.values()],
-                        key=lambda x: x.get("title", "").lower())
+        missing = sorted(
+            [ep.to_missing_dict() for ep in self._missing.values()],
+            key=lambda x: x.get("title", "").lower(),
+        )
         MISSING_FILE.write_text(json.dumps(missing, indent=2, ensure_ascii=False))
 
     def get_by_slug(self, slug: str) -> Episode | None:
@@ -327,7 +339,7 @@ def fix_malformed_json(json_str: str) -> str:
     while i < n:
         char = json_str[i]
 
-        if char == '\\' and i + 1 < n:
+        if char == "\\" and i + 1 < n:
             # Escape sequence - keep as is
             result.append(char)
             result.append(json_str[i + 1])
@@ -342,8 +354,8 @@ def fix_malformed_json(json_str: str) -> str:
             else:
                 # Could be end of string or unescaped quote inside
                 # Look ahead to determine - end of string is followed by : , } ]
-                rest = json_str[i + 1:].lstrip()
-                if not rest or rest[0] in ',}]:':
+                rest = json_str[i + 1 :].lstrip()
+                if not rest or rest[0] in ",}]:":
                     # This is the end of the string
                     in_string = False
                     result.append(char)
@@ -355,7 +367,7 @@ def fix_malformed_json(json_str: str) -> str:
 
         i += 1
 
-    return ''.join(result)
+    return "".join(result)
 
 
 def fetch_metadata(url: str) -> dict:
@@ -393,8 +405,13 @@ def get_slug(title: str, year: str = "") -> str:
 
     # Replace umlauts and special German characters
     replacements = {
-        "ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss",
-        "Ä": "ae", "Ö": "oe", "Ü": "ue",
+        "ä": "ae",
+        "ö": "oe",
+        "ü": "ue",
+        "ß": "ss",
+        "Ä": "ae",
+        "Ö": "oe",
+        "Ü": "ue",
     }
     for char, replacement in replacements.items():
         slug = slug.replace(char, replacement)
@@ -448,9 +465,13 @@ def get_video_duration(video_path: Path) -> str:
     try:
         result = subprocess.run(
             [
-                "ffprobe", "-v", "error",
-                "-show_entries", "format=duration",
-                "-of", "default=noprint_wrappers=1:nokey=1",
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
                 str(video_path),
             ],
             capture_output=True,
@@ -505,14 +526,17 @@ def search_youtube(query: str, max_results: int = 5) -> list[dict]:
                 if not thumbnail_url and data.get("thumbnails"):
                     # Pick the last (usually highest quality) thumbnail
                     thumbnail_url = data["thumbnails"][-1].get("url", "")
-                results.append({
-                    "id": data.get("id", ""),
-                    "title": data.get("title", "Unbekannt"),
-                    "duration": duration_str,
-                    "channel": data.get("channel", data.get("uploader", "?")),
-                    "url": data.get("url") or f"https://www.youtube.com/watch?v={data.get('id', '')}",
-                    "thumbnail": thumbnail_url,
-                })
+                results.append(
+                    {
+                        "id": data.get("id", ""),
+                        "title": data.get("title", "Unbekannt"),
+                        "duration": duration_str,
+                        "channel": data.get("channel", data.get("uploader", "?")),
+                        "url": data.get("url")
+                        or f"https://www.youtube.com/watch?v={data.get('id', '')}",
+                        "thumbnail": thumbnail_url,
+                    }
+                )
             except json.JSONDecodeError:
                 continue
         return results
@@ -589,7 +613,11 @@ def build_table(headers: list, data: list) -> str:
 
     # Build table
     def format_row(cells):
-        return "| " + " | ".join(cell.ljust(widths[i]) for i, cell in enumerate(cells)) + " |"
+        return (
+            "| "
+            + " | ".join(cell.ljust(widths[i]) for i, cell in enumerate(cells))
+            + " |"
+        )
 
     lines = [
         format_row(headers),
@@ -640,7 +668,12 @@ def update_index(repo: EpisodeRepository):
         )
     else:
         # Add missing section at end
-        new_content = new_content.rstrip() + "\n\n\n## Fehlt\n\n<!-- Beginn Fehlt -->\n\n" + missing_table + "\n\n<!-- Ende Fehlt -->\n"
+        new_content = (
+            new_content.rstrip()
+            + "\n\n\n## Fehlt\n\n<!-- Beginn Fehlt -->\n\n"
+            + missing_table
+            + "\n\n<!-- Ende Fehlt -->\n"
+        )
 
     INDEX_FILE.write_text(new_content)
 
@@ -725,7 +758,9 @@ def process_url(url: str) -> bool:
 
         header(f"{episode.title} ({episode.year})")
         if episode.description:
-            click.echo(click.style("  ", fg="white") + episode.description[:100] + "...")
+            click.echo(
+                click.style("  ", fg="white") + episode.description[:100] + "..."
+            )
         click.echo()
 
         # Check if already downloaded
@@ -746,7 +781,18 @@ def process_url(url: str) -> bool:
             inquirer.List(
                 "presenter",
                 message="Wer moderiert?",
-                choices=["Christoph", "Armin", "Ralph", "Clarissa", "Siham", "Johannes", "Andre", "Jana", "Andere", "Unbekannt"],
+                choices=[
+                    "Christoph",
+                    "Armin",
+                    "Ralph",
+                    "Clarissa",
+                    "Siham",
+                    "Johannes",
+                    "Andre",
+                    "Jana",
+                    "Andere",
+                    "Unbekannt",
+                ],
                 carousel=True,
             ),
         ]
@@ -798,7 +844,11 @@ def process_url(url: str) -> bool:
 
         click.echo()
         click.echo(click.style("  ══════════════════════════════════════", fg=ORANGE))
-        click.echo(click.style(f"  🐘 Erfolgreich hinzugefügt: {episode.title}", fg=ORANGE, bold=True))
+        click.echo(
+            click.style(
+                f"  🐘 Erfolgreich hinzugefügt: {episode.title}", fg=ORANGE, bold=True
+            )
+        )
         click.echo(click.style("  ══════════════════════════════════════", fg=ORANGE))
         click.echo()
 
@@ -872,30 +922,45 @@ def parse_bulk_page(url: str) -> tuple[list[dict], list[dict]]:
     for match in re.finditer(available_pattern, response.text):
         href, title, year = match.groups()
         full_url = urljoin(url, href)
-        available.append({
-            "title": title.strip(),
-            "year": year,
-            "url": full_url,
-        })
+        available.append(
+            {
+                "title": title.strip(),
+                "year": year,
+                "url": full_url,
+            }
+        )
 
     # Match missing (no links) - span directly inside li, not inside a
     missing_pattern = r'<li><span><span class="abiszTitel">([^<]+)\s*<span class="abiszJahr">\((\d{4})\)</span>'
     for match in re.finditer(missing_pattern, response.text):
         title, year = match.groups()
-        missing.append({
-            "title": title.strip(),
-            "year": year,
-        })
+        missing.append(
+            {
+                "title": title.strip(),
+                "year": year,
+            }
+        )
 
     return available, missing
 
 
-def process_url_auto(url: str, presenter: str = "", repo: EpisodeRepository | None = None, original_year: str = "") -> bool:
+def process_url_auto(
+    url: str,
+    presenter: str = "",
+    repo: EpisodeRepository | None = None,
+    original_year: str = "",
+) -> bool:
     """Process a URL without interactive prompts. Returns True on success."""
     if repo is None:
         repo = EpisodeRepository()
     try:
-        success, _ = download_episode(url, repo, presenter=presenter, interactive=False, original_year=original_year)
+        success, _ = download_episode(
+            url,
+            repo,
+            presenter=presenter,
+            interactive=False,
+            original_year=original_year,
+        )
         return success
     except Exception:
         return False
@@ -944,7 +1009,20 @@ def ask_presenter(title: str, year: str) -> str | None:
         inquirer.List(
             "presenter",
             message=f"Wer moderiert '{title}' ({year})?",
-            choices=["Christoph", "Armin", "Ralph", "Clarissa", "Siham", "Johannes", "Andre", "Jana", "Laura", "Andere", "Unbekannt", "Überspringen"],
+            choices=[
+                "Christoph",
+                "Armin",
+                "Ralph",
+                "Clarissa",
+                "Siham",
+                "Johannes",
+                "Andre",
+                "Jana",
+                "Laura",
+                "Andere",
+                "Unbekannt",
+                "Überspringen",
+            ],
             carousel=True,
         ),
     ]
@@ -967,7 +1045,9 @@ def ask_presenter(title: str, year: str) -> str | None:
     return presenter
 
 
-def process_bulk_url(url: str, no_download: bool, no_interactive: bool, repo: EpisodeRepository) -> bool:
+def process_bulk_url(
+    url: str, no_download: bool, no_interactive: bool, repo: EpisodeRepository
+) -> bool:
     """Process a single bulk URL. Returns True on success, False if cancelled."""
     info(f"Lese {url}")
 
@@ -977,7 +1057,9 @@ def process_bulk_url(url: str, no_download: bool, no_interactive: bool, repo: Ep
         error(f"Fehler beim Einlesen: {e}")
         return True  # Continue with other URLs
 
-    success(f"Gefunden: {len(available)} verfügbar, {len(missing_episodes)} nicht verfügbar")
+    success(
+        f"Gefunden: {len(available)} verfügbar, {len(missing_episodes)} nicht verfügbar"
+    )
 
     # Add missing episodes
     if missing_episodes:
@@ -998,15 +1080,15 @@ def process_bulk_url(url: str, no_download: bool, no_interactive: bool, repo: Ep
         # Filter out already downloaded by URL (more reliable than slug since titles can differ)
         # Don't skip episodes in missing list - they may be failed downloads that should be retried
         # (Episodes truly unavailable from WDR won't appear in 'available' anyway - they have no URL)
-        to_download = [
-            ep for ep in available
-            if not repo.is_url_downloaded(ep["url"])
-        ]
+        to_download = [ep for ep in available if not repo.is_url_downloaded(ep["url"])]
 
         # Update missing durations for already downloaded episodes
         updated_durations = 0
         for downloaded_ep in repo.get_all_downloaded():
-            if not downloaded_ep.has_valid_duration() and downloaded_ep.find_video_path():
+            if (
+                not downloaded_ep.has_valid_duration()
+                and downloaded_ep.find_video_path()
+            ):
                 duration = get_video_duration(downloaded_ep.video_path)
                 if duration:
                     downloaded_ep.duration = duration
@@ -1064,7 +1146,9 @@ def process_bulk_url(url: str, no_download: bool, no_interactive: bool, repo: Ep
 
             for ep in tqdm(to_download, desc="  🐭 Lädt", unit=" Folge"):
                 presenter = presenter_map.get(ep["title"].lower(), "")
-                if process_url_auto(ep["url"], presenter=presenter, repo=repo, original_year=ep["year"]):
+                if process_url_auto(
+                    ep["url"], presenter=presenter, repo=repo, original_year=ep["year"]
+                ):
                     downloaded_count += 1
                 else:
                     failed.append(ep)
@@ -1076,18 +1160,28 @@ def process_bulk_url(url: str, no_download: bool, no_interactive: bool, repo: Ep
                 # Add failed episodes to missing list (include presenter if available)
                 for ep in failed:
                     presenter = presenter_map.get(ep["title"].lower(), "")
-                    failed_ep = Episode(title=ep["title"], year=ep["year"], presenter=presenter)
+                    failed_ep = Episode(
+                        title=ep["title"], year=ep["year"], presenter=presenter
+                    )
                     repo.add_to_missing(failed_ep)
                 repo.save()
-                warn(f"Fehlgeschlagen (zur Fehlt-Liste hinzugefügt): {', '.join(ep['title'] for ep in failed)}")
+                warn(
+                    f"Fehlgeschlagen (zur Fehlt-Liste hinzugefügt): {', '.join(ep['title'] for ep in failed)}"
+                )
 
     return True
 
 
 @cli.command()
 @click.argument("url")
-@click.option("--no-download", is_flag=True, help="Nicht herunterladen, nur Fehlt-Liste füllen")
-@click.option("--no-interactive", is_flag=True, help="Keine Rückfragen (Moderator wird nicht abgefragt)")
+@click.option(
+    "--no-download", is_flag=True, help="Nicht herunterladen, nur Fehlt-Liste füllen"
+)
+@click.option(
+    "--no-interactive",
+    is_flag=True,
+    help="Keine Rückfragen (Moderator wird nicht abgefragt)",
+)
 def bulk(url: str, no_download: bool, no_interactive: bool):
     """Massen-Import: A-Z Seite einlesen, fehlende Liste füllen, verfügbare herunterladen."""
     click.echo()
@@ -1112,8 +1206,14 @@ def bulk(url: str, no_download: bool, no_interactive: bool):
 
 
 @cli.command()
-@click.option("--no-download", is_flag=True, help="Nicht herunterladen, nur Fehlt-Liste füllen")
-@click.option("--no-interactive", is_flag=True, help="Keine Rückfragen (Moderator wird nicht abgefragt)")
+@click.option(
+    "--no-download", is_flag=True, help="Nicht herunterladen, nur Fehlt-Liste füllen"
+)
+@click.option(
+    "--no-interactive",
+    is_flag=True,
+    help="Keine Rückfragen (Moderator wird nicht abgefragt)",
+)
 def all(no_download: bool, no_interactive: bool):
     """Alle Buchstaben: A-Z Seite laden und alle Buchstaben-Filter durchgehen."""
     click.echo()
@@ -1175,13 +1275,21 @@ def findall():
 
     if not missing:
         if skipped_permanently:
-            info(f"Keine fehlenden Folgen (außer {skipped_permanently} permanent übersprungene).")
+            info(
+                f"Keine fehlenden Folgen (außer {skipped_permanently} permanent übersprungene)."
+            )
         else:
             info("Keine fehlenden Folgen in der Liste.")
         return
 
-    info(f"{len(missing)} fehlende Folgen gefunden" +
-         (f" ({skipped_permanently} permanent übersprungen)" if skipped_permanently else ""))
+    info(
+        f"{len(missing)} fehlende Folgen gefunden"
+        + (
+            f" ({skipped_permanently} permanent übersprungen)"
+            if skipped_permanently
+            else ""
+        )
+    )
     click.echo()
 
     downloaded_count = 0
@@ -1279,7 +1387,14 @@ def findall():
         try:
             episode.dir_path.mkdir(parents=True, exist_ok=True)
             subprocess.run(
-                ["yt-dlp", "--merge-output-format", "mp4", "-o", str(episode.video_path), download_url],
+                [
+                    "yt-dlp",
+                    "--merge-output-format",
+                    "mp4",
+                    "-o",
+                    str(episode.video_path),
+                    download_url,
+                ],
                 check=True,
             )
             duration = get_video_duration(episode.video_path)
@@ -1319,7 +1434,11 @@ def findall():
 
 
 @cli.command()
-@click.option("--apply", is_flag=True, help="Änderungen tatsächlich durchführen (ohne: nur Vorschau)")
+@click.option(
+    "--apply",
+    is_flag=True,
+    help="Änderungen tatsächlich durchführen (ohne: nur Vorschau)",
+)
 def cleanup(apply: bool):
     """Aufräumen: Inkonsistenzen zwischen JSON und Dateien beheben."""
     click.echo()
@@ -1339,8 +1458,12 @@ def cleanup(apply: bool):
     files_to_rename = []  # (old_path, new_path, episode_or_none, is_webm_conversion)
 
     # First: find all .webm files that need conversion to .mp4
-    for f in list(SACHGESCHICHTEN_DIR.glob("**/*.webm")) + list(SACHGESCHICHTEN_DIR.glob("**/*.mp4.webm")):
-        mp4_path = f.with_name(f.name.replace(".mp4.webm", ".mp4").replace(".webm", ".mp4"))
+    for f in list(SACHGESCHICHTEN_DIR.glob("**/*.webm")) + list(
+        SACHGESCHICHTEN_DIR.glob("**/*.mp4.webm")
+    ):
+        mp4_path = f.with_name(
+            f.name.replace(".mp4.webm", ".mp4").replace(".webm", ".mp4")
+        )
         files_to_rename.append((f, mp4_path, None, True))
 
     def normalize_for_comparison(name: str) -> str:
@@ -1366,18 +1489,24 @@ def cleanup(apply: bool):
         # Look for files that might have the old naming scheme
         expected_normalized = normalize_for_comparison(expected_video.stem)
 
-        for existing_file in list(SACHGESCHICHTEN_DIR.glob("**/*.mp4")) + list(SACHGESCHICHTEN_DIR.glob("**/*.webm")):
+        for existing_file in list(SACHGESCHICHTEN_DIR.glob("**/*.mp4")) + list(
+            SACHGESCHICHTEN_DIR.glob("**/*.webm")
+        ):
             existing_normalized = normalize_for_comparison(existing_file.stem)
 
             if existing_normalized == expected_normalized:
                 # Only add if actually needs renaming
                 if existing_file != expected_video:
                     is_webm = existing_file.suffix == ".webm"
-                    files_to_rename.append((existing_file, expected_video, episode, is_webm))
+                    files_to_rename.append(
+                        (existing_file, expected_video, episode, is_webm)
+                    )
                 # Also check for corresponding image
                 existing_webp = existing_file.with_suffix(".jpg")
                 if existing_webp.exists() and existing_webp != expected_image:
-                    files_to_rename.append((existing_webp, expected_image, episode, False))
+                    files_to_rename.append(
+                        (existing_webp, expected_image, episode, False)
+                    )
                 break
 
     if not files_to_rename:
@@ -1385,7 +1514,9 @@ def cleanup(apply: bool):
     else:
         for old_path, new_path, episode, _ in files_to_rename:
             if episode:
-                warn(f"{episode.title} ({episode.year}): {old_path.name} -> {new_path.name}")
+                warn(
+                    f"{episode.title} ({episode.year}): {old_path.name} -> {new_path.name}"
+                )
             else:
                 warn(f"{old_path.name} -> {new_path.name}")
 
@@ -1398,7 +1529,14 @@ def cleanup(apply: bool):
                     # Convert webm to mp4 using ffmpeg
                     try:
                         subprocess.run(
-                            ["ffmpeg", "-i", str(old_path), "-c", "copy", str(new_path)],
+                            [
+                                "ffmpeg",
+                                "-i",
+                                str(old_path),
+                                "-c",
+                                "copy",
+                                str(new_path),
+                            ],
                             check=True,
                             capture_output=True,
                         )
@@ -1544,7 +1682,14 @@ def cleanup(apply: bool):
             success(f"NFO für {len(missing_nfo)} Einträge generiert")
 
     click.echo()
-    needs_apply = files_to_rename or missing_files or missing_duration or missing_presenter or found_on_disk or missing_nfo
+    needs_apply = (
+        files_to_rename
+        or missing_files
+        or missing_duration
+        or missing_presenter
+        or found_on_disk
+        or missing_nfo
+    )
     if not apply and needs_apply:
         info("Führe mit --apply aus, um Änderungen zu übernehmen")
     else:

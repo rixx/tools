@@ -25,6 +25,7 @@ Once you are done, you'll want to combine the images. Several options:
     - ls *.jpg | xargs -I% convert % %.pdf
     - pdftk *.pdf cat output book.pdf && rm *.jpg.pdf
 """
+
 import pathlib
 import subprocess
 

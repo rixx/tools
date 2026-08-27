@@ -14,12 +14,10 @@ def get_firefox_profile_path():
         return possibilities[0]
     example_config = f"[goal:firefox]\npath = {basis}…"
     if len(possibilities) == 0:
-        print(
-            f"""Could not find Firefox profile in {basis}.
+        print(f"""Could not find Firefox profile in {basis}.
 Please put one in your beeminder.cfg, like this:
 
-{example_config}"""
-        )
+{example_config}""")
     else:
         print(
             f"""I found more than one Firefox profile called "default", and now I am confused.

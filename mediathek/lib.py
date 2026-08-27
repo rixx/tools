@@ -6,13 +6,13 @@ from pathlib import Path
 
 import requests
 
-
 MEDIATHEKVIEWWEB_API = "https://mediathekviewweb.de/api/query"
 
 
 @dataclass
 class MediathekResult:
     """A single result from mediathekviewweb."""
+
     title: str
     topic: str
     channel: str
@@ -45,6 +45,7 @@ class MediathekResult:
 @dataclass
 class DownloadResult:
     """Result of a video download attempt."""
+
     success: bool
     path: Path | None = None
     duration_seconds: float | None = None
@@ -112,7 +113,8 @@ def search_mediathekviewweb(
     if blocklist:
         blocklist_lower = [b.lower() for b in blocklist]
         mediathek_results = [
-            r for r in mediathek_results
+            r
+            for r in mediathek_results
             if not any(b in r.title.lower() for b in blocklist_lower)
         ]
 
@@ -124,9 +126,13 @@ def get_video_duration_seconds(video_path: Path) -> float | None:
     try:
         result = subprocess.run(
             [
-                "ffprobe", "-v", "error",
-                "-show_entries", "format=duration",
-                "-of", "default=noprint_wrappers=1:nokey=1",
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
                 str(video_path),
             ],
             capture_output=True,
