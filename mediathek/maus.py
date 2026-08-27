@@ -36,6 +36,20 @@ INDEX_FILE = BASE_DIR / "index.md"
 ORANGE = (255, 165, 0)
 BLUE = (0, 150, 214)
 
+PRESENTER_FULL_NAMES = {
+    "Armin": "Armin Maiwald",
+    "Christoph": "Christoph Biemann",
+    "Ralph": "Ralph Caspers",
+    "Johannes": "Johannes Büchs",
+    "Andre": "André Gatzke",
+    "Siham": "Siham El-Maimouni",
+    "Clarissa": "Clarissa Corrêa da Silva",
+    "Jana": "Jana Forkel",
+    "Malin": "Malin Büttner",
+    "Laura": "Laura Kampf",
+    "Alexander Gerst": "Alexander Gerst",
+}
+
 
 @dataclass
 class Episode:
@@ -58,25 +72,56 @@ class Episode:
         return get_slug(self.title, self.year)
 
     @property
+    def dir_name(self) -> str:
+        name = sanitize_dirname(self.title)
+        if self.year:
+            return f"{name} ({self.year})"
+        return name
+
+    @property
+    def dir_path(self) -> Path:
+        return SACHGESCHICHTEN_DIR / self.dir_name
+
+    @property
     def video_path(self) -> Path:
         """Returns the canonical .mp4 path (for new downloads)."""
-        return SACHGESCHICHTEN_DIR / f"{self.slug}.mp4"
+        return self.dir_path / f"{self.dir_name}.mp4"
 
     def find_video_path(self) -> Path | None:
         """Find actual video file, checking multiple extensions."""
         for ext in self.VIDEO_EXTENSIONS:
-            path = SACHGESCHICHTEN_DIR / f"{self.slug}{ext}"
+            path = self.dir_path / f"{self.dir_name}{ext}"
             if path.exists():
                 return path
         return None
 
     @property
     def image_path(self) -> Path:
-        return SACHGESCHICHTEN_DIR / f"{self.slug}.webp"
+        return self.dir_path / "cover.jpg"
+
+    @property
+    def nfo_path(self) -> Path:
+        return self.dir_path / "movie.nfo"
 
     @property
     def is_downloaded(self) -> bool:
         return self.find_video_path() is not None
+
+    def generate_nfo(self):
+        """Write a Jellyfin-compatible movie.nfo file."""
+        lines = [
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+            "<movie>",
+            f"  <title>{_xml_escape(self.title)}</title>",
+        ]
+        if self.year:
+            lines.append(f"  <year>{_xml_escape(self.year)}</year>")
+        lines.append(f"  <plot>{_xml_escape('Sachgeschichte - ' + self.title)}</plot>")
+        if self.presenter and self.presenter != "-":
+            full_name = PRESENTER_FULL_NAMES.get(self.presenter, self.presenter)
+            lines.append(f"  <director>{_xml_escape(full_name)}</director>")
+        lines.append("</movie>")
+        self.nfo_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     def has_valid_duration(self) -> bool:
         return self.duration not in (None, "", "NA")
@@ -371,6 +416,25 @@ def get_slug(title: str, year: str = "") -> str:
     return slug
 
 
+def sanitize_dirname(name: str) -> str:
+    """Sanitize a string for use as a directory name."""
+    name = name.strip()
+    name = name.replace("/", "-")
+    name = name.replace(":", " -")
+    # Collapse multiple spaces
+    name = re.sub(r" {2,}", " ", name)
+    return name
+
+
+def _xml_escape(text: str) -> str:
+    """Escape special characters for XML content."""
+    text = text.replace("&", "&amp;")
+    text = text.replace("<", "&lt;")
+    text = text.replace(">", "&gt;")
+    text = text.replace('"', "&quot;")
+    return text
+
+
 def get_year(metadata: dict) -> str:
     """Extract year from datePublished."""
     date_str = metadata.get("datePublished", "")
@@ -466,7 +530,7 @@ def download_video(url: str, output_path: Path, title: str = "") -> str:
     """
     try:
         subprocess.run(
-            ["yt-dlp", "--merge-output-format", "mp4", "-o", str(output_path), url, "--cookies-from-browser"],
+            ["yt-dlp", "--merge-output-format", "mp4", "-o", str(output_path), url],
             check=True,
         )
         return get_video_duration(output_path)
@@ -497,7 +561,7 @@ def download_video(url: str, output_path: Path, title: str = "") -> str:
 
 
 def download_image(url: str, output_path: Path):
-    """Download image and convert to webp."""
+    """Download image and convert to JPEG."""
     response = requests.get(url)
     response.raise_for_status()
 
@@ -505,9 +569,9 @@ def download_image(url: str, output_path: Path):
     temp_path = output_path.with_suffix(".tmp")
     temp_path.write_bytes(response.content)
 
-    # Convert to webp
+    # Convert to JPEG
     with Image.open(temp_path) as img:
-        img.save(output_path, "WEBP")
+        img.convert("RGB").save(output_path, "JPEG")
 
     temp_path.unlink()
 
@@ -627,6 +691,9 @@ def download_episode(
     else:
         episode.presenter = repo.get_presenter(episode.slug)
 
+    # Create episode directory
+    episode.dir_path.mkdir(parents=True, exist_ok=True)
+
     # Download video
     episode.duration = download_video(url, episode.video_path, title=episode.title)
 
@@ -641,6 +708,7 @@ def download_episode(
     repo.upsert_downloaded(episode)
     repo.remove_from_missing(episode.slug)
     repo.save()
+    episode.generate_nfo()
 
     return True, episode
 
@@ -700,6 +768,9 @@ def process_url(url: str) -> bool:
 
         episode.presenter = presenter
 
+        # Create episode directory
+        episode.dir_path.mkdir(parents=True, exist_ok=True)
+
         # Download video
         info(f"Lade Video herunter: {episode.video_path.name}")
         episode.duration = download_video(url, episode.video_path, title=episode.title)
@@ -718,6 +789,7 @@ def process_url(url: str) -> bool:
         repo.upsert_downloaded(episode)
         repo.remove_from_missing(episode.slug)
         repo.save()
+        episode.generate_nfo()
         success("sachgeschichten.json aktualisiert")
 
         # Update index
@@ -1205,6 +1277,7 @@ def findall():
 
         # Download with yt-dlp
         try:
+            episode.dir_path.mkdir(parents=True, exist_ok=True)
             subprocess.run(
                 ["yt-dlp", "--merge-output-format", "mp4", "-o", str(episode.video_path), download_url],
                 check=True,
@@ -1225,6 +1298,7 @@ def findall():
             repo.upsert_downloaded(episode)
             repo.remove_from_missing(episode.slug)
             repo.save()
+            episode.generate_nfo()
 
             success(f"Heruntergeladen: {episode.video_path.name} ({duration})")
             downloaded_count += 1
@@ -1265,7 +1339,7 @@ def cleanup(apply: bool):
     files_to_rename = []  # (old_path, new_path, episode_or_none, is_webm_conversion)
 
     # First: find all .webm files that need conversion to .mp4
-    for f in list(SACHGESCHICHTEN_DIR.glob("*.webm")) + list(SACHGESCHICHTEN_DIR.glob("*.mp4.webm")):
+    for f in list(SACHGESCHICHTEN_DIR.glob("**/*.webm")) + list(SACHGESCHICHTEN_DIR.glob("**/*.mp4.webm")):
         mp4_path = f.with_name(f.name.replace(".mp4.webm", ".mp4").replace(".webm", ".mp4"))
         files_to_rename.append((f, mp4_path, None, True))
 
@@ -1292,7 +1366,7 @@ def cleanup(apply: bool):
         # Look for files that might have the old naming scheme
         expected_normalized = normalize_for_comparison(expected_video.stem)
 
-        for existing_file in list(SACHGESCHICHTEN_DIR.glob("*.mp4")) + list(SACHGESCHICHTEN_DIR.glob("*.webm")):
+        for existing_file in list(SACHGESCHICHTEN_DIR.glob("**/*.mp4")) + list(SACHGESCHICHTEN_DIR.glob("**/*.webm")):
             existing_normalized = normalize_for_comparison(existing_file.stem)
 
             if existing_normalized == expected_normalized:
@@ -1300,8 +1374,8 @@ def cleanup(apply: bool):
                 if existing_file != expected_video:
                     is_webm = existing_file.suffix == ".webm"
                     files_to_rename.append((existing_file, expected_video, episode, is_webm))
-                # Also check for corresponding webp
-                existing_webp = existing_file.with_suffix(".webp")
+                # Also check for corresponding image
+                existing_webp = existing_file.with_suffix(".jpg")
                 if existing_webp.exists() and existing_webp != expected_image:
                     files_to_rename.append((existing_webp, expected_image, episode, False))
                 break
@@ -1319,6 +1393,7 @@ def cleanup(apply: bool):
 
         if apply:
             for old_path, new_path, episode, is_webm in files_to_rename:
+                new_path.parent.mkdir(parents=True, exist_ok=True)
                 if is_webm:
                     # Convert webm to mp4 using ffmpeg
                     try:
@@ -1450,8 +1525,26 @@ def cleanup(apply: bool):
             update_index(repo)
             success(f"{len(found_on_disk)} Einträge zur Download-Liste verschoben")
 
+    # Check for episodes missing NFO files
+    header("Prüfe: Einträge ohne NFO-Datei")
+    missing_nfo = []
+    for episode in repo.get_all_downloaded():
+        if episode.find_video_path() and not episode.nfo_path.exists():
+            missing_nfo.append(episode)
+            warn(f"{episode.title} ({episode.year})")
+
+    if not missing_nfo:
+        success("Alle Einträge haben NFO-Dateien")
+    else:
+        info(f"{len(missing_nfo)} Einträge ohne NFO-Datei gefunden")
+
+        if apply:
+            for episode in missing_nfo:
+                episode.generate_nfo()
+            success(f"NFO für {len(missing_nfo)} Einträge generiert")
+
     click.echo()
-    needs_apply = files_to_rename or missing_files or missing_duration or missing_presenter or found_on_disk
+    needs_apply = files_to_rename or missing_files or missing_duration or missing_presenter or found_on_disk or missing_nfo
     if not apply and needs_apply:
         info("Führe mit --apply aus, um Änderungen zu übernehmen")
     else:
