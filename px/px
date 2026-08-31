@@ -32,7 +32,9 @@ Usage:
        --skip-rebuild  Skips the rebuild step
   px init        Install all configured plugins
        --system  Install all configured plugins and pretalx itself
-  px autoupdate  Check for a newer commit with a passing build, and update to it if found
+  px autoupdate  Update plugins, then update core if a newer commit has a passing build
+       --no-plugins  Skips plugin updates
+       --skip-rebuild  Skips the rebuild step
 """
     print(message)
 
@@ -156,9 +158,71 @@ def github_api(url):
     return json.loads(response.read().decode())
 
 
+def git_head(path):
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=path,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip()
+    except Exception:
+        return None
+
+
+def pull_plugins(config):
+    cwd = f"/var/lib/{config['user']}"
+    changed = []
+    for plugin in config.get("plugins", []):
+        plugin_path = f"{cwd}/plugins/{plugin['name']}"
+        if not Path(plugin_path).exists():
+            print(f"WARNING: {plugin['name']} has no checkout at {plugin_path}, skipping. Run px init.")
+            continue
+        before = git_head(plugin_path)
+        subprocess_run(
+            [
+                "git",
+                "pull",
+                # always use upstream and discard local changes
+                "--force",
+            ],
+            cwd=plugin_path,
+            check=True,
+        )
+        if git_head(plugin_path) != before:
+            changed.append(plugin["name"])
+    return changed
+
+
+def apply_plugin_changes(config, changed, skip_rebuild=False):
+    print(f"Plugins changed ({', '.join(changed)}), applying to the running venv …")
+    current_venv = config["current"]
+    pretalx_run(args=["migrate"], env=current_venv, config=config)
+    if not skip_rebuild:
+        pretalx_run(args=["rebuild", "--silent"], env=current_venv, config=config)
+    systemd_pretalx("restart")
+
+
 def autoupdate(*, args):
+    config = get_config()
+    skip_rebuild = "--skip-rebuild" in args
+    plugins_changed = []
+    if "--no-plugins" in args:
+        print("Skipping plugin updates")
+    else:
+        print("Updating plugins …")
+        plugins_changed = pull_plugins(config)
+
+    args = list(set(args) | {"--no-plugins"})
+
+    def done():
+        if plugins_changed:
+            apply_plugin_changes(config, plugins_changed, skip_rebuild=skip_rebuild)
+
     # Check which commit we are running. If there is a new one that has a passing build, call update().
-    current_commit = get_current_commit()
+    current_commit = get_current_commit(config)
 
     # We're getting the latest 10 runs of pretalx tests
     try:
@@ -167,7 +231,7 @@ def autoupdate(*, args):
         )
     except Exception as e:
         print(f"Could not fetch status from GitHub: {e}")
-        return
+        return done()
 
     # The runs list is ordered by run creation, not commit date, so a re-run
     # of an old commit lists first. Sort by commit date and only deploy
@@ -193,28 +257,29 @@ def autoupdate(*, args):
             )
             return update(args=[run_commit] + args)
         print("No commit with passing build found.")
-        return
+        return done()
 
     for run in runs:
         run_commit = run["head_sha"]
         if sha_equal(run_commit, current_commit):
             # Already running the newest passing commit.
-            return
+            return done()
         try:
             comparison = github_api(
                 f"https://api.github.com/repos/pretalx/pretalx/compare/{current_commit}...{run_commit}"
             )
         except Exception as e:
             print(f"Could not compare {current_commit} to {run_commit}: {e}")
-            return
+            return done()
         if comparison["status"] == "ahead":
             print(f"Found newer commit {run_commit} with passing build, updating …")
             return update(args=[run_commit] + args)
         if comparison["status"] in ("behind", "identical"):
             # Candidate is older than what we run; nothing newer exists.
-            return
+            return done()
         # diverged: not on our history line (force push), try the next run
     print("No newer commit with passing build found.")
+    return done()
 
 
 def update(*, args):
@@ -235,18 +300,7 @@ def update(*, args):
     path = f"{cwd}/{next_venv}/bin/pip"
     if not no_plugins:
         print("Updating plugins …")
-        for plugin in config.get("plugins", []):
-            plugin_path = f"{cwd}/plugins/{plugin['name']}"
-            subprocess_run(
-                [
-                    "git",
-                    "pull",
-                    # always use upstream and discard local changes
-                    "--force",
-                ],
-                cwd=plugin_path,
-                check=True,
-            )
+        pull_plugins(config)
     else:
         print("Skipping plugin updates")
 
