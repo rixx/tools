@@ -478,7 +478,10 @@ def main():
         print_help()
         sys.exit(-1)
 
-    commands[command](args=args)
+    try:
+        commands[command](args=args)
+    except subprocess.CalledProcessError as e:
+        sys.exit(e.returncode)
 
 
 if __name__ == "__main__":
