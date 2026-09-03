@@ -16,6 +16,30 @@ CADDY = "/etc/caddy/conf.d/pretalx.conf"
 SOCKET = "/run/gunicorn/pretalx_{}"
 PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
 
+# pretalx.urls loads plugin URLs under suppress(ImportError): a plugin that does
+# not match the installed core silently loses its routes. Import them explicitly.
+PLUGIN_IMPORT_CHECK = """
+import os
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "pretalx.settings")
+
+import importlib
+import importlib.util
+
+import django
+
+django.setup()
+
+from django.apps import apps
+
+for app in apps.get_app_configs():
+    if not getattr(app, "PretalxPluginMeta", None):
+        continue
+    for module in (f"{app.name}.urls", f"{app.name}.views"):
+        if importlib.util.find_spec(module):
+            importlib.import_module(module)
+"""
+
 
 def print_help():
     message = """px is a pretalx helper tool, made for pretalx.com
@@ -174,7 +198,7 @@ def git_head(path):
 
 def pull_plugins(config):
     cwd = f"/var/lib/{config['user']}"
-    changed = []
+    changed = {}
     for plugin in config.get("plugins", []):
         plugin_path = f"{cwd}/plugins/{plugin['name']}"
         if not Path(plugin_path).exists():
@@ -192,8 +216,35 @@ def pull_plugins(config):
             check=True,
         )
         if git_head(plugin_path) != before:
-            changed.append(plugin["name"])
+            changed[plugin["name"]] = before
     return changed
+
+
+def revert_plugins(config, changed):
+    cwd = f"/var/lib/{config['user']}"
+    for name, commit in changed.items():
+        if not commit:
+            continue
+        print(f"Rolling {name} back to {commit[:7]} …")
+        subprocess_run(
+            ["git", "reset", "--hard", commit],
+            cwd=f"{cwd}/plugins/{name}",
+            check=False,
+        )
+
+
+def verify_venv(config, venv):
+    print(f"Verifying {venv} …")
+    try:
+        pretalx_run(args=["check"], env=venv, config=config)
+        _run_venv_command(args=["-c", PLUGIN_IMPORT_CHECK], env=venv, config=config)
+    except subprocess.CalledProcessError:
+        print(
+            f"VERIFICATION FAILED in {venv}, not switching to it.",
+            file=sys.stderr,
+            flush=True,
+        )
+        raise
 
 
 def apply_plugin_changes(config, changed, skip_rebuild=False):
@@ -202,13 +253,14 @@ def apply_plugin_changes(config, changed, skip_rebuild=False):
     pretalx_run(args=["migrate"], env=current_venv, config=config)
     if not skip_rebuild:
         pretalx_run(args=["rebuild", "--silent"], env=current_venv, config=config)
+    verify_venv(config, current_venv)
     systemd_pretalx("restart")
 
 
 def autoupdate(*, args):
     config = get_config()
     skip_rebuild = "--skip-rebuild" in args
-    plugins_changed = []
+    plugins_changed = {}
     if "--no-plugins" in args:
         print("Skipping plugin updates")
     else:
@@ -221,65 +273,72 @@ def autoupdate(*, args):
         if plugins_changed:
             apply_plugin_changes(config, plugins_changed, skip_rebuild=skip_rebuild)
 
-    # Check which commit we are running. If there is a new one that has a passing build, call update().
-    current_commit = get_current_commit(config)
+    def decide():
+        # Check which commit we are running. If there is a new one that has a passing build, call update().
+        current_commit = get_current_commit(config)
 
-    # We're getting the latest 10 runs of pretalx tests
-    try:
-        data = github_api(
-            "https://api.github.com/repos/pretalx/pretalx/actions/workflows/2006620/runs?per_page=10&branch=main&status=success"
-        )
-    except Exception as e:
-        print(f"Could not fetch status from GitHub: {e}")
-        return done()
-
-    # The runs list is ordered by run creation, not commit date, so a re-run
-    # of an old commit lists first. Sort by commit date and only deploy
-    # commits that are ancestry-wise ahead of the current one.
-    runs = [
-        run
-        for run in data["workflow_runs"]
-        if run["status"] == "completed" and run["conclusion"] == "success"
-    ]
-    runs.sort(
-        key=lambda run: (run.get("head_commit") or {}).get("timestamp", ""),
-        reverse=True,
-    )
-
-    if not current_commit or not re.fullmatch(r"[0-9a-f]{7,40}", current_commit):
-        # No usable current commit to compare against; trust the commit-date
-        # ordering and take the newest passing run.
-        if runs:
-            run_commit = runs[0]["head_sha"]
-            print(
-                f"Current commit unknown ({current_commit!r}), "
-                f"updating to newest passing commit {run_commit} …"
-            )
-            return update(args=[run_commit] + args)
-        print("No commit with passing build found.")
-        return done()
-
-    for run in runs:
-        run_commit = run["head_sha"]
-        if sha_equal(run_commit, current_commit):
-            # Already running the newest passing commit.
-            return done()
+        # We're getting the latest 10 runs of pretalx tests
         try:
-            comparison = github_api(
-                f"https://api.github.com/repos/pretalx/pretalx/compare/{current_commit}...{run_commit}"
+            data = github_api(
+                "https://api.github.com/repos/pretalx/pretalx/actions/workflows/2006620/runs?per_page=10&branch=main&status=success"
             )
         except Exception as e:
-            print(f"Could not compare {current_commit} to {run_commit}: {e}")
+            print(f"Could not fetch status from GitHub: {e}")
             return done()
-        if comparison["status"] == "ahead":
-            print(f"Found newer commit {run_commit} with passing build, updating …")
-            return update(args=[run_commit] + args)
-        if comparison["status"] in ("behind", "identical"):
-            # Candidate is older than what we run; nothing newer exists.
+
+        # The runs list is ordered by run creation, not commit date, so a re-run
+        # of an old commit lists first. Sort by commit date and only deploy
+        # commits that are ancestry-wise ahead of the current one.
+        runs = [
+            run
+            for run in data["workflow_runs"]
+            if run["status"] == "completed" and run["conclusion"] == "success"
+        ]
+        runs.sort(
+            key=lambda run: (run.get("head_commit") or {}).get("timestamp", ""),
+            reverse=True,
+        )
+
+        if not current_commit or not re.fullmatch(r"[0-9a-f]{7,40}", current_commit):
+            # No usable current commit to compare against; trust the commit-date
+            # ordering and take the newest passing run.
+            if runs:
+                run_commit = runs[0]["head_sha"]
+                print(
+                    f"Current commit unknown ({current_commit!r}), "
+                    f"updating to newest passing commit {run_commit} …"
+                )
+                return update(args=[run_commit] + args)
+            print("No commit with passing build found.")
             return done()
-        # diverged: not on our history line (force push), try the next run
-    print("No newer commit with passing build found.")
-    return done()
+
+        for run in runs:
+            run_commit = run["head_sha"]
+            if sha_equal(run_commit, current_commit):
+                # Already running the newest passing commit.
+                return done()
+            try:
+                comparison = github_api(
+                    f"https://api.github.com/repos/pretalx/pretalx/compare/{current_commit}...{run_commit}"
+                )
+            except Exception as e:
+                print(f"Could not compare {current_commit} to {run_commit}: {e}")
+                return done()
+            if comparison["status"] == "ahead":
+                print(f"Found newer commit {run_commit} with passing build, updating …")
+                return update(args=[run_commit] + args)
+            if comparison["status"] in ("behind", "identical"):
+                # Candidate is older than what we run; nothing newer exists.
+                return done()
+            # diverged: not on our history line (force push), try the next run
+        print("No newer commit with passing build found.")
+        return done()
+
+    try:
+        return decide()
+    except subprocess.CalledProcessError:
+        revert_plugins(config, plugins_changed)
+        raise
 
 
 def update(*, args):
@@ -349,6 +408,7 @@ def update(*, args):
         pretalx_run(args=["rebuild", "--silent"], env=next_venv, config=config)
     else:
         print("Skipping static file rebuild …")
+    verify_venv(config, next_venv)
     print("Stopping old celery worker …")
     systemd_run("stop", f"pretalx-worker@{current_venv}.service")
     systemd_run("disable", f"pretalx-worker@{current_venv}.service")
