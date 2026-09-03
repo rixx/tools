@@ -3,7 +3,7 @@
 # dependencies = [
 #   "click",
 #   "httpx",
-#   "rt",
+#   "rt<3.8",
 #   "tqdm",
 # ]
 # ///
