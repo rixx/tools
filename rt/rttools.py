@@ -2,8 +2,8 @@
 # /// script
 # dependencies = [
 #   "click",
-#   "httpx",
-#   "rt<3.8",
+#   "httpx2",
+#   "rt",
 #   "tqdm",
 # ]
 # ///
@@ -16,7 +16,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import click
-import httpx
+import httpx2
 from tqdm import tqdm
 
 import rt.rest2
@@ -27,7 +27,7 @@ import rt.rest2
 def get_tracker(auth_data):
     return rt.rest2.Rt(
         url=auth_data["url"],
-        http_auth=httpx.BasicAuth(
+        http_auth=httpx2.BasicAuth(
             auth_data["username"],
             auth_data["password"],
         ),
