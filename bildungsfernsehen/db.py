@@ -51,7 +51,12 @@ _lock = threading.RLock()
 
 
 def now():
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return (
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
 
 
 def init():
@@ -101,7 +106,11 @@ def item_dict(row):
         "title": row["title"],
         "channel": row["channel"],
         "channel_id": row["channel_id"],
-        "channel_url": f"https://www.youtube.com/channel/{row['channel_id']}" if row["channel_id"] else None,
+        "channel_url": (
+            f"https://www.youtube.com/channel/{row['channel_id']}"
+            if row["channel_id"]
+            else None
+        ),
         "duration": row["duration"],
         "published": row["published"],
         "view_count": row["view_count"],
@@ -121,7 +130,10 @@ def item_dict(row):
 
 def playlist_dict(conn, row):
     counts = {"active": 0, "watched": 0, "removed": 0, "gone": 0}
-    for c in conn.execute("SELECT status, COUNT(*) n FROM items WHERE playlist_id = ? GROUP BY status", (row["id"],)):
+    for c in conn.execute(
+        "SELECT status, COUNT(*) n FROM items WHERE playlist_id = ? GROUP BY status",
+        (row["id"],),
+    ):
         counts[c["status"]] = c["n"]
     return {
         "id": row["id"],
@@ -134,7 +146,9 @@ def playlist_dict(conn, row):
 
 
 def get_playlist(conn, playlist_id):
-    return conn.execute("SELECT * FROM playlists WHERE id = ?", (playlist_id,)).fetchone()
+    return conn.execute(
+        "SELECT * FROM playlists WHERE id = ?", (playlist_id,)
+    ).fetchone()
 
 
 def get_item(conn, item_id):
@@ -142,12 +156,18 @@ def get_item(conn, item_id):
 
 
 def log_event(conn, item_id, action):
-    conn.execute("INSERT INTO events (item_id, action, at) VALUES (?, ?, ?)", (item_id, action, now()))
+    conn.execute(
+        "INSERT INTO events (item_id, action, at) VALUES (?, ?, ?)",
+        (item_id, action, now()),
+    )
 
 
 def upsert_video(conn, entry):
     """Insert or refresh a video row from a flat playlist entry. Enrichment fields are kept."""
-    placeholder = (entry.get("title") or "").strip("[]") in ("Private video", "Deleted video")
+    placeholder = (entry.get("title") or "").strip("[]") in (
+        "Private video",
+        "Deleted video",
+    )
     available = bool(entry.get("duration")) or not placeholder
     conn.execute(
         """INSERT INTO videos (id, title, channel, channel_id, duration, view_count, available, published, enriched_at)
@@ -184,7 +204,8 @@ def apply_sync(conn, playlist_id, entries):
         upsert_video(conn, entry)
         seen.add(entry["id"])
         row = conn.execute(
-            "SELECT id, status FROM items WHERE playlist_id = ? AND video_id = ?", (playlist_id, entry["id"])
+            "SELECT id, status FROM items WHERE playlist_id = ? AND video_id = ?",
+            (playlist_id, entry["id"]),
         ).fetchone()
         # The API knows the real add date and the playlist item id; the yt-dlp listing has neither.
         added_at = entry.get("added_at")
@@ -203,14 +224,21 @@ def apply_sync(conn, playlist_id, entries):
             )
             if row["status"] == "gone":
                 # Re-added on YouTube after we flagged it missing.
-                conn.execute("UPDATE items SET status = 'active', removed_at = NULL WHERE id = ?", (row["id"],))
+                conn.execute(
+                    "UPDATE items SET status = 'active', removed_at = NULL WHERE id = ?",
+                    (row["id"],),
+                )
                 log_event(conn, row["id"], "restore")
     gone = 0
     for row in conn.execute(
-        "SELECT id, video_id FROM items WHERE playlist_id = ? AND status = 'active'", (playlist_id,)
+        "SELECT id, video_id FROM items WHERE playlist_id = ? AND status = 'active'",
+        (playlist_id,),
     ).fetchall():
         if row["video_id"] not in seen:
-            conn.execute("UPDATE items SET status = 'gone', removed_at = ? WHERE id = ?", (ts, row["id"]))
+            conn.execute(
+                "UPDATE items SET status = 'gone', removed_at = ? WHERE id = ?",
+                (ts, row["id"]),
+            )
             log_event(conn, row["id"], "gone")
             gone += 1
     conn.execute("UPDATE playlists SET last_synced = ? WHERE id = ?", (ts, playlist_id))
@@ -230,7 +258,9 @@ def pending_enrichment(conn):
 def store_enrichment(conn, video_id, info):
     if info is None:
         # Lookup failures (region locks, consent walls) keep the listing's verdict on availability.
-        conn.execute("UPDATE videos SET enriched_at = ? WHERE id = ?", (now(), video_id))
+        conn.execute(
+            "UPDATE videos SET enriched_at = ? WHERE id = ?", (now(), video_id)
+        )
         return
     published = info.get("upload_date")
     if published and len(published) == 8:

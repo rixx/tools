@@ -15,14 +15,13 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import db
 import uvicorn
+import youtube
+import ytapi
 from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-
-import db
-import youtube
-import ytapi
 
 HOST, PORT = "127.0.0.1", 8765
 STATIC = Path(__file__).parent / "static"
@@ -87,7 +86,9 @@ def sync_playlist(playlist_id):
     except Exception as e:  # noqa: BLE001 — yt-dlp raises a zoo of things
         raise HTTPException(502, f"youtube fetch failed: {e}")
     with db.connect() as conn:
-        conn.execute("UPDATE playlists SET title = ? WHERE id = ?", (title, playlist_id))
+        conn.execute(
+            "UPDATE playlists SET title = ? WHERE id = ?", (title, playlist_id)
+        )
         added, gone = db.apply_sync(conn, playlist_id, entries)
         playlist = db.playlist_dict(conn, db.get_playlist(conn, playlist_id))
     enrich_missing()
@@ -104,11 +105,17 @@ class PlaylistIn(BaseModel):
 @app.get("/api/state")
 def state():
     with db.connect() as conn:
-        playlists = [db.playlist_dict(conn, r) for r in conn.execute("SELECT * FROM playlists ORDER BY id")]
+        playlists = [
+            db.playlist_dict(conn, r)
+            for r in conn.execute("SELECT * FROM playlists ORDER BY id")
+        ]
     return {
         "playlists": playlists,
         "enriching": enriching_count(),
-        "youtube": {"connected": ytapi.available(), "client_secret": ytapi.CLIENT_SECRET.exists()},
+        "youtube": {
+            "connected": ytapi.available(),
+            "client_secret": ytapi.CLIENT_SECRET.exists(),
+        },
     }
 
 
@@ -121,7 +128,9 @@ def add_playlist(body: PlaylistIn):
     with db.connect() as conn:
         if conn.execute("SELECT 1 FROM playlists WHERE yt_id = ?", (yt_id,)).fetchone():
             raise HTTPException(409, "playlist already added")
-        cur = conn.execute("INSERT INTO playlists (yt_id, title) VALUES (?, ?)", (yt_id, yt_id))
+        cur = conn.execute(
+            "INSERT INTO playlists (yt_id, title) VALUES (?, ?)", (yt_id, yt_id)
+        )
         playlist_id = cur.lastrowid
     try:
         return sync_playlist(playlist_id)["playlist"]
@@ -139,7 +148,10 @@ def sync(playlist_id: int):
 @app.delete("/api/playlists/{playlist_id}", status_code=204)
 def delete_playlist(playlist_id: int):
     with db.connect() as conn:
-        if conn.execute("DELETE FROM playlists WHERE id = ?", (playlist_id,)).rowcount == 0:
+        if (
+            conn.execute("DELETE FROM playlists WHERE id = ?", (playlist_id,)).rowcount
+            == 0
+        ):
             raise HTTPException(404, "playlist not found")
     return Response(status_code=204)
 
@@ -149,7 +161,9 @@ def items(playlist_id: int):
     with db.connect() as conn:
         if db.get_playlist(conn, playlist_id) is None:
             raise HTTPException(404, "playlist not found")
-        rows = conn.execute(db.ITEM_SQL + " WHERE i.playlist_id = ? ORDER BY i.position", (playlist_id,)).fetchall()
+        rows = conn.execute(
+            db.ITEM_SQL + " WHERE i.playlist_id = ? ORDER BY i.position", (playlist_id,)
+        ).fetchall()
     return [db.item_dict(r) for r in rows]
 
 
@@ -163,21 +177,31 @@ def pick(
 ):
     with db.connect() as conn:
         rows = conn.execute(
-            db.ITEM_SQL + " WHERE i.playlist_id = ? AND i.status = 'active' AND v.available = 1", (playlist_id,)
+            db.ITEM_SQL
+            + " WHERE i.playlist_id = ? AND i.status = 'active' AND v.available = 1",
+            (playlist_id,),
         ).fetchall()
     candidates = [
         r
         for r in rows
         if r["id"] != exclude
-        and (min_duration is None or (r["duration"] is not None and r["duration"] >= min_duration))
-        and (max_duration is None or (r["duration"] is not None and r["duration"] <= max_duration))
+        and (
+            min_duration is None
+            or (r["duration"] is not None and r["duration"] >= min_duration)
+        )
+        and (
+            max_duration is None
+            or (r["duration"] is not None and r["duration"] <= max_duration)
+        )
         and (not channel or r["channel"] in channel)
     ]
     if not candidates:
         return None
     # Skipped videos come back only once everything else has been skipped as often.
     min_skips = min(r["skips"] for r in candidates)
-    return db.item_dict(random.choice([r for r in candidates if r["skips"] == min_skips]))
+    return db.item_dict(
+        random.choice([r for r in candidates if r["skips"] == min_skips])
+    )
 
 
 ACTIONS = {
@@ -196,11 +220,15 @@ def push_to_youtube(conn, item, action):
     try:
         if action in ("watched", "remove") and item["yt_item_id"]:
             ytapi.delete_item(item["yt_item_id"])
-            conn.execute("UPDATE items SET yt_item_id = NULL WHERE id = ?", (item["id"],))
+            conn.execute(
+                "UPDATE items SET yt_item_id = NULL WHERE id = ?", (item["id"],)
+            )
         elif action == "restore" and not item["yt_item_id"]:
             playlist = db.get_playlist(conn, item["playlist_id"])
             yt_item_id = ytapi.insert_item(playlist["yt_id"], item["video_id"])
-            conn.execute("UPDATE items SET yt_item_id = ? WHERE id = ?", (yt_item_id, item["id"]))
+            conn.execute(
+                "UPDATE items SET yt_item_id = ? WHERE id = ?", (yt_item_id, item["id"])
+            )
     except Exception as e:  # noqa: BLE001
         return str(e)
     return None
@@ -233,7 +261,15 @@ def history(playlist_id: int, limit: int = 50):
                WHERE i.playlist_id = ? AND e.action != 'added' ORDER BY e.id DESC LIMIT ?""",
             (playlist_id, limit),
         ).fetchall()
-    return [{"id": r["event_id"], "action": r["action"], "at": r["at"], "item": db.item_dict(r)} for r in rows]
+    return [
+        {
+            "id": r["event_id"],
+            "action": r["action"],
+            "at": r["at"],
+            "item": db.item_dict(r),
+        }
+        for r in rows
+    ]
 
 
 app.mount("/", StaticFiles(directory=STATIC, html=True), name="static")
@@ -254,7 +290,12 @@ def open_hub():
     if not port_open():
         log = db.DB_PATH.parent / "serve.log"
         with open(log, "ab") as out:
-            subprocess.Popen([sys.executable, __file__, "serve"], stdout=out, stderr=out, start_new_session=True)
+            subprocess.Popen(
+                [sys.executable, __file__, "serve"],
+                stdout=out,
+                stderr=out,
+                start_new_session=True,
+            )
         for _ in range(100):
             if port_open():
                 break
@@ -263,9 +304,13 @@ def open_hub():
             sys.exit(f"server did not come up, see {log}")
     base = f"http://{HOST}:{PORT}"
     for playlist in requests.get(f"{base}/api/state", timeout=10).json()["playlists"]:
-        result = requests.post(f"{base}/api/playlists/{playlist['id']}/sync", timeout=120).json()
+        result = requests.post(
+            f"{base}/api/playlists/{playlist['id']}/sync", timeout=120
+        ).json()
         print(f"{playlist['title']}: +{result.get('added')} -{result.get('gone')}")
-    subprocess.Popen(["xdg-open", f"{base}/"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.Popen(
+        ["xdg-open", f"{base}/"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+    )
 
 
 def main(argv):
@@ -288,7 +333,9 @@ def main(argv):
             ids = [r["id"] for r in conn.execute("SELECT id FROM playlists")]
         for pid in ids:
             result = sync_playlist(pid)
-            print(f"{result['playlist']['title']}: +{result['added']} -{result['gone']} = {result['total']}")
+            print(
+                f"{result['playlist']['title']}: +{result['added']} -{result['gone']} = {result['total']}"
+            )
         # CLI sync waits for the background lookups so the process can exit cleanly.
         while enriching_count():
             threading.Event().wait(1)

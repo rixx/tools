@@ -11,24 +11,12 @@
 
 <header class="topbar">
   <div class="topbar-inner">
-    <div class="brand-row">
-      <h1 class="brand">Bildungsfernsehen</h1>
-      <nav class="tabs" aria-label="Ansichten">
-        <a href="#pick" data-tab="pick">Serviervorschlag</a>
-        <a href="#browse" data-tab="browse">Liste</a>
-        <a href="#history" data-tab="history">Verlauf</a>
-      </nav>
-    </div>
-    <div class="playlist-row">
-      <div id="playlist-select"></div>
-      <button class="btn" id="sync-btn" type="button">
-        <svg class="icon spin-when-busy" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2v3h-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span class="btn-label">Sync</span>
-        <small id="sync-time"></small>
-      </button>
-      <details class="popover" id="manage">
-        <summary class="btn ghost">Playlist hinzufügen</summary>
-        <form class="popover-menu" id="add-form">
+    <details class="popover" id="manage">
+      <summary class="brand" title="Playlists verwalten">Bildungsfernsehen</summary>
+      <div class="popover-menu manage-menu">
+        <div id="playlist-select"></div>
+        <span class="note" id="yt-note" hidden></span>
+        <form id="add-form">
           <label class="field">
             <span>Playlist-URL oder -ID</span>
             <input type="text" id="add-url" placeholder="https://www.youtube.com/playlist?list=…" autocomplete="off" required>
@@ -38,9 +26,20 @@
             <button class="btn danger ghost" type="button" id="delete-playlist" hidden>Aktuelle Playlist entfernen</button>
           </div>
         </form>
-      </details>
+      </div>
+    </details>
+    <nav class="tabs" aria-label="Ansichten">
+      <a href="#pick" data-tab="pick">Serviervorschlag</a>
+      <a href="#browse" data-tab="browse">Liste</a>
+      <a href="#history" data-tab="history">Verlauf</a>
+    </nav>
+    <div class="topbar-right">
       <span class="note" id="enrich-note" hidden></span>
-      <span class="note" id="yt-note" hidden></span>
+      <button class="btn" id="sync-btn" type="button">
+        <svg class="icon spin-when-busy" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2v3h-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="btn-label">Sync</span>
+        <small id="sync-time"></small>
+      </button>
     </div>
   </div>
 </header>

@@ -65,7 +65,15 @@ def parse_duration(text):
 def _paged(resource, **params):
     token = None
     while True:
-        page = _call("GET", resource, params={**params, "maxResults": 50, **({"pageToken": token} if token else {})})
+        page = _call(
+            "GET",
+            resource,
+            params={
+                **params,
+                "maxResults": 50,
+                **({"pageToken": token} if token else {}),
+            },
+        )
         yield from page.get("items", [])
         token = page.get("nextPageToken")
         if not token:
@@ -74,10 +82,14 @@ def _paged(resource, **params):
 
 def fetch_playlist(yt_id):
     """Same shape as `youtube.fetch_playlist`, plus yt_item_id, added_at and published per entry."""
-    lists = _call("GET", "playlists", params={"part": "snippet", "id": yt_id}).get("items", [])
+    lists = _call("GET", "playlists", params={"part": "snippet", "id": yt_id}).get(
+        "items", []
+    )
     title = lists[0]["snippet"]["title"] if lists else yt_id
     entries = []
-    for item in _paged("playlistItems", part="snippet,contentDetails", playlistId=yt_id):
+    for item in _paged(
+        "playlistItems", part="snippet,contentDetails", playlistId=yt_id
+    ):
         snippet = item["snippet"]
         entries.append(
             {
@@ -89,18 +101,27 @@ def fetch_playlist(yt_id):
                 "view_count": None,
                 "yt_item_id": item["id"],
                 "added_at": snippet["publishedAt"],
-                "published": (item.get("contentDetails", {}).get("videoPublishedAt") or "")[:10] or None,
+                "published": (
+                    item.get("contentDetails", {}).get("videoPublishedAt") or ""
+                )[:10]
+                or None,
             }
         )
     by_id = {e["id"]: e for e in entries}
     ids = list(by_id)
     for start in range(0, len(ids), 50):
         chunk = ids[start : start + 50]
-        videos = _call("GET", "videos", params={"part": "contentDetails,statistics", "id": ",".join(chunk)})
+        videos = _call(
+            "GET",
+            "videos",
+            params={"part": "contentDetails,statistics", "id": ",".join(chunk)},
+        )
         for video in videos.get("items", []):
             entry = by_id[video["id"]]
             entry["duration"] = parse_duration(video["contentDetails"]["duration"])
-            entry["view_count"] = int(video.get("statistics", {}).get("viewCount") or 0) or None
+            entry["view_count"] = (
+                int(video.get("statistics", {}).get("viewCount") or 0) or None
+            )
     return title, entries
 
 
@@ -109,7 +130,12 @@ def delete_item(yt_item_id):
 
 
 def insert_item(playlist_yt_id, video_id):
-    body = {"snippet": {"playlistId": playlist_yt_id, "resourceId": {"kind": "youtube#video", "videoId": video_id}}}
+    body = {
+        "snippet": {
+            "playlistId": playlist_yt_id,
+            "resourceId": {"kind": "youtube#video", "videoId": video_id},
+        }
+    }
     return _call(
         "POST",
         "playlistItems",

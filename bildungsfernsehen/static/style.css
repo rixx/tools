@@ -90,9 +90,9 @@ kbd {
   padding: 0 16px;
 }
 
-.topbar-inner { padding-top: 12px; padding-bottom: 12px; display: grid; gap: 10px; }
-
-.brand-row, .playlist-row {
+.topbar-inner {
+  padding-top: 10px;
+  padding-bottom: 10px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -104,7 +104,19 @@ kbd {
   margin: 0;
   font-weight: 700;
   letter-spacing: -.01em;
+  cursor: pointer;
+  list-style: none;
+  padding: 4px 0;
 }
+.brand::-webkit-details-marker { display: none; }
+.brand:hover { color: var(--accent); }
+
+.manage-menu { min-width: 320px; }
+.manage-menu form { display: grid; gap: 8px; }
+.playlist-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.playlist-line select { flex: 1; }
+
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 
 .tabs {
   display: flex;
@@ -112,7 +124,7 @@ kbd {
   padding: 3px;
   background: var(--surface-2);
   border-radius: 999px;
-  margin-left: auto;
+  margin: 0 auto;
 }
 
 .tabs a {
@@ -469,7 +481,9 @@ span.th-sort { cursor: default; }
 @media (max-width: 760px) {
   .hero { grid-template-columns: 1fr; padding: 12px; }
   .hero h2 { font-size: 1.15rem; }
-  .tabs { margin-left: 0; width: 100%; justify-content: stretch; }
+  .tabs { width: 100%; justify-content: stretch; order: 3; }
+  .topbar-right { margin-left: auto; }
+  .topbar-right .note { display: none; }
   .tabs a { flex: 1; text-align: center; }
   .hint kbd { display: none; }
   .hint { display: none; }

@@ -17,7 +17,12 @@ def parse_playlist_id(text):
 
 
 def _ydl(**extra):
-    opts = {"quiet": True, "no_warnings": True, "skip_download": True, "noprogress": True}
+    opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "skip_download": True,
+        "noprogress": True,
+    }
     opts.update(extra)
     return yt_dlp.YoutubeDL(opts)
 
@@ -25,7 +30,9 @@ def _ydl(**extra):
 def fetch_playlist(yt_id):
     """Flat listing: title plus one entry per video with basic metadata. Seconds, not minutes."""
     with _ydl(extract_flat=True) as ydl:
-        info = ydl.extract_info(f"https://www.youtube.com/playlist?list={yt_id}", download=False)
+        info = ydl.extract_info(
+            f"https://www.youtube.com/playlist?list={yt_id}", download=False
+        )
     entries = [e for e in info.get("entries") or [] if e and e.get("id")]
     return info.get("title") or yt_id, entries
 
@@ -34,6 +41,8 @@ def fetch_video(video_id):
     """Full metadata for one video, or None when unavailable."""
     try:
         with _ydl(noplaylist=True) as ydl:
-            return ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+            return ydl.extract_info(
+                f"https://www.youtube.com/watch?v={video_id}", download=False
+            )
     except yt_dlp.utils.DownloadError:
         return None

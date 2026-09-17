@@ -367,13 +367,14 @@
   function renderTopbar() {
     const sel = $('#playlist-select');
     const pl = currentPlaylist();
+    const ytLink = pl ? `<a class="btn small ghost" href="${esc(pl.url)}" target="_blank" rel="noopener">${ICONS.open}<span>auf YouTube</span></a>` : '';
     if (state.playlists.length > 1) {
-      sel.innerHTML = '<select id="playlist-dropdown" aria-label="Playlist">' +
+      sel.innerHTML = '<div class="playlist-line"><select id="playlist-dropdown" aria-label="Playlist">' +
         state.playlists.map((p) =>
           `<option value="${p.id}"${p.id === state.playlistId ? ' selected' : ''}>${esc(p.title || p.yt_id)}</option>`).join('') +
-        '</select>';
+        '</select>' + ytLink + '</div>';
     } else if (pl) {
-      sel.innerHTML = `<span class="playlist-title">${esc(pl.title || pl.yt_id)}</span>`;
+      sel.innerHTML = `<div class="playlist-line"><span class="playlist-title">${esc(pl.title || pl.yt_id)}</span>${ytLink}</div>`;
     } else {
       sel.innerHTML = '<span class="playlist-title muted">Noch keine Playlist</span>';
     }
@@ -468,9 +469,11 @@
 
   function renderPickStats() {
     const active = activeItems();
-    const total = active.reduce((s, i) => s + (i.duration || 0), 0);
+    const matches = pickMatches();
+    const sum = (items) => items.reduce((s, i) => s + (i.duration || 0), 0);
+    const filtered = matches.length === active.length ? '' : ` · ${matches.length} gefiltert, ${fmtHours(sum(matches))}`;
     $('#pick-stats').textContent = state.playlistId
-      ? `${active.length} Videos · ${pickMatches().length} gefiltert · ${fmtHours(total)}`
+      ? `${active.length} Videos, ${fmtHours(sum(active))}${filtered}`
       : '';
   }
 
