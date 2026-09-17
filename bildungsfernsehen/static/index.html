@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Bildungsfernsehen</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand-row">
+      <h1 class="brand">Bildungsfernsehen</h1>
+      <nav class="tabs" aria-label="Ansichten">
+        <a href="#pick" data-tab="pick">Serviervorschlag</a>
+        <a href="#browse" data-tab="browse">Liste</a>
+        <a href="#history" data-tab="history">Verlauf</a>
+      </nav>
+    </div>
+    <div class="playlist-row">
+      <div id="playlist-select"></div>
+      <button class="btn" id="sync-btn" type="button">
+        <svg class="icon spin-when-busy" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2v3h-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="btn-label">Sync</span>
+        <small id="sync-time"></small>
+      </button>
+      <details class="popover" id="manage">
+        <summary class="btn ghost">Playlist hinzufügen</summary>
+        <form class="popover-menu" id="add-form">
+          <label class="field">
+            <span>Playlist-URL oder -ID</span>
+            <input type="text" id="add-url" placeholder="https://www.youtube.com/playlist?list=…" autocomplete="off" required>
+          </label>
+          <div class="row">
+            <button class="btn primary" type="submit">Hinzufügen und synchronisieren</button>
+            <button class="btn danger ghost" type="button" id="delete-playlist" hidden>Aktuelle Playlist entfernen</button>
+          </div>
+        </form>
+      </details>
+      <span class="note" id="enrich-note" hidden></span>
+      <span class="note" id="yt-note" hidden></span>
+    </div>
+  </div>
+</header>
+
+<main class="content">
+
+  <section class="view" id="view-pick" hidden>
+    <div class="card filters">
+      <div class="filter-row">
+        <div class="chips" data-chips="pick"></div>
+        <div class="range">
+          <label class="field inline"><span>von</span><input type="number" min="0" step="1" inputmode="numeric" data-range="pick-min" placeholder="min"></label>
+          <label class="field inline"><span>bis</span><input type="number" min="0" step="1" inputmode="numeric" data-range="pick-max" placeholder="max"></label>
+        </div>
+        <div data-picker="pick"></div>
+      </div>
+      <p class="stats" id="pick-stats"></p>
+    </div>
+    <div id="pick-hero"></div>
+    <p class="hint">Tastenkürzel: <kbd>o</kbd> öffnen · <kbd>w</kbd> gesehen · <kbd>s</kbd> überspringen · <kbd>r</kbd> neuer Vorschlag</p>
+  </section>
+
+  <section class="view" id="view-browse" hidden>
+    <div class="card filters">
+      <div class="filter-row">
+        <input type="search" class="search" id="browse-q" placeholder="Titel oder Kanal suchen" autocomplete="off">
+        <select id="browse-status" aria-label="Status">
+          <option value="active">Aktiv</option>
+          <option value="watched">Gesehen</option>
+          <option value="removed">Entfernt</option>
+          <option value="gone">Verschwunden</option>
+          <option value="all">Alle</option>
+        </select>
+        <div data-picker="browse"></div>
+        <select id="browse-skips" aria-label="Übersprungen">
+          <option value="any">Egal wie oft übersprungen</option>
+          <option value="0">Nie übersprungen</option>
+          <option value="1">≥ 1× übersprungen</option>
+          <option value="2">≥ 2× übersprungen</option>
+        </select>
+        <select id="browse-sort" aria-label="Sortierung">
+          <option value="added_desc">Hinzugefügt, neueste zuerst</option>
+          <option value="added_asc">Hinzugefügt, älteste zuerst</option>
+          <option value="dur_asc">Länge, kurze zuerst</option>
+          <option value="dur_desc">Länge, lange zuerst</option>
+          <option value="pub_desc">Veröffentlicht, neueste zuerst</option>
+          <option value="pub_asc">Veröffentlicht, älteste zuerst</option>
+          <option value="title_asc">Titel A–Z</option>
+          <option value="title_desc">Titel Z–A</option>
+          <option value="channel_asc">Kanal A–Z</option>
+          <option value="channel_desc">Kanal Z–A</option>
+          <option value="skips_desc">Übersprungen, meiste zuerst</option>
+          <option value="skips_asc">Übersprungen, wenigste zuerst</option>
+          <option value="position">Playlist-Reihenfolge</option>
+        </select>
+      </div>
+      <div class="filter-row">
+        <div class="chips" data-chips="browse"></div>
+        <div class="range">
+          <label class="field inline"><span>von</span><input type="number" min="0" step="1" inputmode="numeric" data-range="browse-min" placeholder="min"></label>
+          <label class="field inline"><span>bis</span><input type="number" min="0" step="1" inputmode="numeric" data-range="browse-max" placeholder="max"></label>
+        </div>
+        <p class="stats" id="browse-count"></p>
+      </div>
+    </div>
+    <div class="card table-wrap" id="browse-list"></div>
+  </section>
+
+  <section class="view" id="view-history" hidden>
+    <div class="card" id="history-list"></div>
+  </section>
+
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>
