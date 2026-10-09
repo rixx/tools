@@ -1,0 +1,20 @@
+# Copy to watch.toml. state.json is written next to this file.
+limit = 50        # results per API page
+max_pages = 4     # pages per search per run (stops early once a page is all known)
+
+[mail]
+from = "printables@tonks.rixx.de"
+to = "rixx@example.com"
+# host = "localhost"
+# subject = "Printables: {total} new models"
+
+[[search]]
+query = "sonicare"
+
+[[search]]
+query = "gridfinity"
+# drop results whose title or summary contains any of these
+exclude = ["bin", "baseplate"]
+# keep only results whose title or summary contains at least one of these
+require = ["holder", "mount"]
+# nsfw = false
