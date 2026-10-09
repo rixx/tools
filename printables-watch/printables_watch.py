@@ -16,6 +16,7 @@ import argparse
 import html
 import json
 import smtplib
+import socket
 import sys
 import tomllib
 from datetime import datetime, timezone
@@ -23,6 +24,10 @@ from email.message import EmailMessage
 from pathlib import Path
 
 import requests
+import urllib3.util.connection
+
+# Cloudflare 403s Hetzner IPv6 ranges, IPv4 passes (tonks, 2026-10-09).
+urllib3.util.connection.allowed_gai_family = lambda: socket.AF_INET
 
 API = "https://api.printables.com/graphql/"
 UA = "Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0"
