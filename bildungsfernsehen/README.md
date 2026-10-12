@@ -26,8 +26,9 @@ Setup, once:
 1. https://console.cloud.google.com → new project → APIs & Services → enable "YouTube Data API v3".
 2. OAuth consent screen: external, add your own Google account as test user. Scope `…/auth/youtube`.
 3. Credentials → create OAuth client ID → Desktop app → download JSON → save as `data/client_secret.json`.
-4. `./hub.py auth` opens the browser, stores `data/token.json`. Next sync uses the API.
+4. Click "Verbinden" in the hub (or `./hub.py auth`), stores `data/token.json`. Next sync uses the API.
    Pick the channel that owns the playlist on the second account step (here: rixxian, not the personal channel), otherwise deletes fail with 403.
+   While the consent screen stays in testing mode, Google revokes the token after 7 days; the hub then drops it and shows "Verbinden" again.
 
 Quota: 10 000 units/day. A sync costs ~6 units per 50 videos, each delete/insert 50.
 

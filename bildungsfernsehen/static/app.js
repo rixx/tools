@@ -277,8 +277,8 @@
     if (updated && updated.youtube_error) msg += ` (YouTube nicht aktualisiert: ${updated.youtube_error})`;
     else if (state.youtube && state.youtube.connected && (action === 'watched' || action === 'remove')) msg += ' – auch auf YouTube';
     toast(msg, undoAction ? () => undo(item.id, undoAction) : null);
+    renderView();
     if (state.view === 'pick' && wasPick) loadPick(item.id);
-    else renderView();
     if (state.view === 'history') loadHistory();
   }
 
@@ -388,7 +388,9 @@
     note.textContent = state.enriching > 0 ? `Datensammlung … noch ${state.enriching}` : '';
     const yt = $('#yt-note');
     yt.hidden = !pl || !!(state.youtube && state.youtube.connected);
-    yt.textContent = yt.hidden ? '' : 'YouTube nicht verbunden: Status wird nur lokal gespeichert. `./hub.py auth`, siehe README.';
+    if (yt.hidden) yt.textContent = '';
+    else if (state.youtube && state.youtube.client_secret) yt.innerHTML = 'YouTube nicht verbunden: Status wird nur lokal gespeichert. <a href="/auth">Verbinden</a>';
+    else yt.textContent = 'YouTube nicht verbunden: Status wird nur lokal gespeichert. Einrichtung siehe README.';
   }
 
   // ---------- Rendering: shared controls ----------

@@ -20,6 +20,7 @@ import uvicorn
 import youtube
 import ytapi
 from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -82,7 +83,10 @@ def sync_playlist(playlist_id):
         raise HTTPException(404, "playlist not found")
     source = ytapi if ytapi.available() else youtube
     try:
-        title, entries = source.fetch_playlist(row["yt_id"])
+        try:
+            title, entries = source.fetch_playlist(row["yt_id"])
+        except ytapi.TokenExpired:
+            title, entries = youtube.fetch_playlist(row["yt_id"])
     except Exception as e:  # noqa: BLE001 — yt-dlp raises a zoo of things
         raise HTTPException(502, f"youtube fetch failed: {e}")
     with db.connect() as conn:
@@ -117,6 +121,25 @@ def state():
             "client_secret": ytapi.CLIENT_SECRET.exists(),
         },
     }
+
+
+@app.get("/auth")
+def auth_start():
+    try:
+        return RedirectResponse(ytapi.auth_url(f"http://{HOST}:{PORT}/auth/callback"))
+    except ytapi.ApiError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/auth/callback")
+def auth_callback(code: str = "", error: str = ""):
+    if error or not code:
+        raise HTTPException(400, f"YouTube login failed: {error or 'no code'}")
+    try:
+        ytapi.finish_auth(code)
+    except Exception as e:  # noqa: BLE001 — oauthlib raises a zoo of things
+        raise HTTPException(400, f"YouTube login failed: {e}")
+    return RedirectResponse("/")
 
 
 @app.post("/api/playlists", status_code=201)

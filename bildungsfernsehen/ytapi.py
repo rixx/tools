@@ -1,12 +1,13 @@
-"""YouTube Data API v3 with OAuth. Optional: only used once `data/token.json` exists (see `hub.py auth`)."""
+"""YouTube Data API v3 with OAuth. Optional: only used once `data/token.json` exists (`hub.py auth` or the hub's /auth)."""
 
 import json
 import re
 from pathlib import Path
 
+from google.auth.exceptions import RefreshError
 from google.auth.transport.requests import AuthorizedSession, Request
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google_auth_oauthlib.flow import Flow, InstalledAppFlow
 
 DATA = Path(__file__).parent / "data"
 CLIENT_SECRET = DATA / "client_secret.json"
@@ -19,6 +20,10 @@ DURATION_RE = re.compile(r"P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?")
 
 class ApiError(Exception):
     pass
+
+
+class TokenExpired(ApiError):
+    """Refresh token rejected (7-day limit while the OAuth app is in testing mode). Token file already removed."""
 
 
 def available():
@@ -35,10 +40,42 @@ def authorize():
     TOKEN.write_text(creds.to_json())
 
 
+# Browser flow driven by the hub: /auth redirects to Google, Google returns to /auth/callback.
+_pending_flow = None
+
+
+def auth_url(redirect_uri):
+    global _pending_flow
+    if not CLIENT_SECRET.exists():
+        raise ApiError(f"missing {CLIENT_SECRET}, see README")
+    _pending_flow = Flow.from_client_secrets_file(
+        CLIENT_SECRET, SCOPES, redirect_uri=redirect_uri
+    )
+    url, _state = _pending_flow.authorization_url(
+        access_type="offline", prompt="consent"
+    )
+    return url
+
+
+def finish_auth(code):
+    global _pending_flow
+    if _pending_flow is None:
+        raise ApiError("no login in progress, start again")
+    _pending_flow.fetch_token(code=code)
+    TOKEN.write_text(_pending_flow.credentials.to_json())
+    _pending_flow = None
+
+
 def _session():
     creds = Credentials.from_authorized_user_file(TOKEN, SCOPES)
     if creds.expired and creds.refresh_token:
-        creds.refresh(Request())
+        try:
+            creds.refresh(Request())
+        except RefreshError as e:
+            TOKEN.unlink(missing_ok=True)
+            raise TokenExpired(
+                f"YouTube login expired ({e.args[0]}), reconnect in the hub"
+            )
         TOKEN.write_text(creds.to_json())
     return AuthorizedSession(creds)
 

@@ -190,3 +190,46 @@ def test_api_sync_and_push(client, monkeypatch):
         and r["youtube_error"] == "quota"
         and r["on_youtube"] is True
     )
+
+
+def test_auth_flow(client, monkeypatch, tmp_path):
+    monkeypatch.setattr(ytapi, "CLIENT_SECRET", tmp_path / "missing.json")
+    assert client.get("/auth", follow_redirects=False).status_code == 400
+
+    secret = tmp_path / "client_secret.json"
+    secret.write_text(
+        '{"installed": {"client_id": "id", "client_secret": "s", '
+        '"auth_uri": "https://accounts.google.com/o/oauth2/auth", '
+        '"token_uri": "https://oauth2.googleapis.com/token", '
+        '"redirect_uris": ["http://localhost"]}}'
+    )
+    monkeypatch.setattr(ytapi, "CLIENT_SECRET", secret)
+    r = client.get("/auth", follow_redirects=False)
+    assert r.status_code == 307
+    assert r.headers["location"].startswith(
+        "https://accounts.google.com/o/oauth2/auth?"
+    )
+    assert "prompt=consent" in r.headers["location"]
+    assert "auth%2Fcallback" in r.headers["location"]
+
+    assert (
+        client.get(
+            "/auth/callback?error=access_denied", follow_redirects=False
+        ).status_code
+        == 400
+    )
+    codes = []
+    monkeypatch.setattr(ytapi, "finish_auth", codes.append)
+    r = client.get("/auth/callback?code=abc", follow_redirects=False)
+    assert r.status_code == 307 and r.headers["location"] == "/" and codes == ["abc"]
+
+
+def test_expired_token_falls_back_to_ytdlp(client, monkeypatch):
+    monkeypatch.setattr(ytapi, "available", lambda: True)
+
+    def expired(_):
+        raise ytapi.TokenExpired("gone")
+
+    monkeypatch.setattr(ytapi, "fetch_playlist", expired)
+    r = client.post("/api/playlists", json={"url": "PLxxxxxxxxxxx"})
+    assert r.status_code == 201 and r.json()["title"] == "List"
