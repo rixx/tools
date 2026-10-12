@@ -3,12 +3,14 @@ Tools
 
 Things that make my daily life better.
 
+- accounting: imports bank statement CSVs into YNAB (ynab_import.py, config in ynab_import.toml)
 - archive: download a book from archive.org, with high-fidelity images
 - beeminder: automatically aggregate stuff and sync to beeminder.com
 - clickity: draffic generator
 - dogsheep: tooling to automatically extract data from APIs into SQLite, currently only the Django ticket tracker
 - domain-check: check a set of domains for DNS records, HTTP and HTTPS availability.
 - mastodon: some scripts, but mostly the `queries.md` file for db interaction.
+- printables-watch: mails new Printables models for configured searches, run daily (printables_watch.py, config in watch.toml)
 - picture-sorter: simple tk interface showing pictures and either removing them or moving them to a directory based on their creation date.
 - px: helps me manage pretalx on a server, with two venvs for zero-ish downtime updates
 - randommail: sends an email with random content taken from a file. Good to send daily quotes, reminders etc.
