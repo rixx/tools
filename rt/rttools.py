@@ -161,22 +161,23 @@ def stats(queue, auth, ignore_users, users):
     time_first_reply = []
     unknown_types = set()
 
-    for ticket in tqdm(tickets, desc="Tickets", total=float("inf")):
+    for ticket in tqdm(tickets, desc="Tickets", total=ticket_count):
         total += 1
-        history = get_ticket_history(ticket["id"], tracker)
-        if not history:
+        history = get_cached_history(ticket, tracker, cache)
+        if history is None:
             print("Giving up on this ticket, continuing without")
+            continue
         response_time = None
         track_response_time = True
         for transaction in history:
-            if "@" in transaction["Creator"]["Name"]:
+            if "@" in transaction["Creator"]:
                 # Externally created user
                 if transaction["Type"] in ("Correspond", "Create"):
                     emails_received += 1
                 continue
-            if users and transaction["Creator"]["Name"] not in users:
+            if users and transaction["Creator"] not in users:
                 continue
-            if ignore_users and transaction["Creator"]["Name"] in ignore_users:
+            if ignore_users and transaction["Creator"] in ignore_users:
                 continue
             if transaction["Type"] in (
                 "AddReminder",
@@ -209,9 +210,9 @@ def stats(queue, auth, ignore_users, users):
                 "Give",
                 "Steal",
             ):
-                actions_by_user[transaction["Creator"]["Name"]] += 1
+                actions_by_user[transaction["Creator"]] += 1
             elif transaction["Type"] == "Correspond":
-                replies_by_user[transaction["Creator"]["Name"]] += 1
+                replies_by_user[transaction["Creator"]] += 1
                 if not response_time and track_response_time:
                     response_time = get_time(transaction["Created"]) - get_time(
                         ticket["Created"]
