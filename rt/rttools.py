@@ -2,7 +2,7 @@
 # /// script
 # dependencies = [
 #   "click",
-#   "httpx2",
+#   "httpx",
 #   "rt",
 #   "tqdm",
 # ]
@@ -16,7 +16,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import click
-import httpx2
+import httpx
 from tqdm import tqdm
 
 import rt.rest2
@@ -27,7 +27,7 @@ import rt.rest2
 def get_tracker(auth_data):
     return rt.rest2.Rt(
         url=auth_data["url"],
-        http_auth=httpx2.BasicAuth(
+        http_auth=httpx.BasicAuth(
             auth_data["username"],
             auth_data["password"],
         ),
@@ -103,7 +103,7 @@ def auth(auth):
     auth_data = {}
     if auth_path.exists():
         auth_data = json.load(open(auth_path))
-    if all(auth_data.get("key") for key in ("url", "username", "password")):
+    if all(auth_data.get(key) for key in ("url", "username", "password")):
         click.echo("Credentials are already present.")
         sys.exit(0)
 
