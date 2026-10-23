@@ -34,14 +34,77 @@ def get_tracker(auth_data):
     )
 
 
+def count_tickets(tracker, queue_name):
+    response = tracker.session.get(
+        tracker.url + "tickets",
+        params={"query": f"Queue='{queue_name}'", "per_page": 1, "fields": "id"},
+    )
+    response.raise_for_status()
+    return response.json().get("total")
+
+
+def fetch_ticket_history(ticket_id, tracker):
+    # ⁂ Bypasses rt.rest2.get_ticket_history: it hardcodes 20 items per page
+    # ⁂ and requests fields we never use.
+    items = []
+    page = 1
+    while True:
+        response = tracker.session.get(
+            f"{tracker.url}ticket/{ticket_id}/history",
+            params={
+                "fields": "Type,Creator,Created",
+                "fields[Creator]": "Name",
+                "page": page,
+                "per_page": 100,
+            },
+        )
+        response.raise_for_status()
+        result = response.json()
+        items.extend(
+            {
+                "Type": item["Type"],
+                "Created": item["Created"],
+                "Creator": item["Creator"]["Name"],
+            }
+            for item in result["items"]
+        )
+        if not result["items"] or len(items) >= result.get("total", 0):
+            return items
+        page += 1
+
+
 def get_ticket_history(ticket_id, tracker):
     for _ in range(5):
         try:
-            return tracker.get_ticket_history(ticket_id)
+            return fetch_ticket_history(ticket_id, tracker)
         except Exception:
             print(f"Failed to get ticket history for {ticket_id}")
             time.sleep(2)
     return None
+
+
+CACHE_PATH = Path(__file__).parent / "history_cache.json"
+
+
+def load_cache():
+    if CACHE_PATH.exists():
+        return json.load(open(CACHE_PATH))
+    return {}
+
+
+def save_cache(cache):
+    CACHE_PATH.write_text(json.dumps(cache))
+
+
+def get_cached_history(ticket, tracker, cache):
+    key = str(ticket["id"])
+    entry = cache.get(key)
+    if entry and entry["LastUpdated"] == ticket["LastUpdated"]:
+        return entry["history"]
+    history = get_ticket_history(ticket["id"], tracker)
+    if history is not None:
+        cache[key] = {"LastUpdated": ticket["LastUpdated"], "history": history}
+    return history
 
 
 def resolve_auth_path(auth_path):
@@ -142,12 +205,19 @@ def auth(auth):
     help="Ignore tickets created by these users",
     default="",
 )
-def stats(queue, auth, ignore_users, users):
+@click.option(
+    "--refresh",
+    is_flag=True,
+    help="Ignore the local history cache and fetch everything anew",
+)
+def stats(queue, auth, ignore_users, users, refresh):
     "Show statistics for a queue"
     auth_data = load_auth(auth)
     tracker = get_tracker(auth_data)
     queue = tracker.get_queue(queue)
-    tickets = tracker.search(queue=queue["Name"])
+    tickets = tracker.search(queue=queue["Name"], query_format=["Created", "LastUpdated"])
+    ticket_count = count_tickets(tracker, queue["Name"])
+    cache = {} if refresh else load_cache()
     users = set([u for u in users.split(",") if u])
     ignore_users = set([u for u in ignore_users.split(",") if u])
     if not users:
@@ -223,6 +293,7 @@ def stats(queue, auth, ignore_users, users):
         if track_response_time and response_time and response_time > dt.timedelta():
             time_first_reply.append(response_time)
 
+    save_cache(cache)
     print(f"\n\n#### {queue['Name']}")
     print(f"Found {total} tickets in queue {queue['Name']}.")
     print(f"Received {emails_received} incoming emails.\n")
