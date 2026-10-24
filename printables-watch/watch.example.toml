@@ -2,19 +2,17 @@
 limit = 50        # results per API page
 max_pages = 4     # pages per search per run (stops early once a page is all known)
 
+# Search for a plain string or an object if you need extra filters.
+# Keys: exclude, require, nsfw (default: false)
+# Keep this list above [mail]!
+search = [
+  "sonicare",
+  "ikea ivar",
+  { query = "gridfinity", exclude = ["bin", "baseplate"], require = ["holder", "mount"] },
+]
+
 [mail]
 from = "printables@tonks.rixx.de"
 to = "rixx@example.com"
 # host = "localhost"
 # subject = "Printables: {total} new models"
-
-[[search]]
-query = "sonicare"
-
-[[search]]
-query = "gridfinity"
-# drop results whose title or summary contains any of these
-exclude = ["bin", "baseplate"]
-# keep only results whose title or summary contains at least one of these
-require = ["holder", "mount"]
-# nsfw = false

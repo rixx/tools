@@ -7,9 +7,7 @@
 # ///
 """Watch Printables searches and mail new models.
 
-Config lives in watch.toml next to this script (or pass --config). Per search,
-the newest firstPublish seen goes to state.json next to the config. The first run
-for a search records the watermark without mailing.
+Config lives in watch.toml next to this script (or pass --config).
 """
 
 import argparse
@@ -67,6 +65,17 @@ def fetch(query, limit, offset):
     if "errors" in data:
         raise RuntimeError(json.dumps(data["errors"]))
     return data["data"]["searchPrints2"]["items"]
+
+
+def searches(config):
+    result = []
+    for entry in config.get("search", []):
+        if isinstance(entry, str):
+            entry = {"query": entry}
+        if not isinstance(entry, dict) or not entry.get("query"):
+            raise SystemExit(f"bad search entry: {entry!r}")
+        result.append(entry)
+    return result
 
 
 def model_url(item):
@@ -184,7 +193,7 @@ def main():
     max_pages = config.get("max_pages", 4)
 
     sections = []
-    for search in config["search"]:
+    for search in searches(config):
         query = search["query"]
         seeding = args.reseed or query not in state
         watermark = "" if seeding else state[query]
