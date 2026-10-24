@@ -154,11 +154,11 @@ def ticket_has_been_modified(ticket_id, tracker):
 )
 @click.argument("source")
 @click.argument("destination")
-@click.argument("subject_pattern")
-def automove(auth, dry_run, silent, source, destination, subject_pattern):
+@click.argument("subject_patterns", nargs=-1, required=True)
+def automove(auth, dry_run, silent, source, destination, subject_patterns):
     """Move tickets from SOURCE queue to DESTINATION queue.
 
-    Moves all 'new' or 'open' tickets that do NOT match SUBJECT_PATTERN.
+    Moves all 'new' or 'open' tickets that do NOT match any of SUBJECT_PATTERNS.
     Tickets that have been manually modified are skipped.
     """
     auth_data = load_auth(auth)
@@ -177,8 +177,6 @@ def automove(auth, dry_run, silent, source, destination, subject_pattern):
     source_name = source_queue["Name"]
     dest_name = dest_queue["Name"]
 
-    pattern = subject_pattern
-
     tickets = list(
         tracker.search(
             queue=source_name,
@@ -192,8 +190,8 @@ def automove(auth, dry_run, silent, source, destination, subject_pattern):
     for ticket in tqdm(tickets, desc="Processing tickets", disable=silent):
         subject = ticket.get("Subject", "")
 
-        # Skip tickets that match the pattern
-        if pattern in subject:
+        # Skip tickets that match any pattern
+        if any(pattern in subject for pattern in subject_patterns):
             skipped_pattern += 1
             continue
 
